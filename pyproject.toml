@@ -1,0 +1,57 @@
+[project]
+name = "nana"
+version = "0.1.0"
+description = "NANA Study Assistant - AI-powered PDF study notes and quizzes"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Web framework
+    "fastapi>=0.122.1",
+    "uvicorn[standard]>=0.38.0",
+    "python-multipart>=0.0.20",
+    
+    # Settings & validation
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    
+    # HTTP client
+    "httpx>=0.28.1",
+    
+    # Google Gemini SDK
+    "google-generativeai>=0.8.5",
+    
+    # Vector operations
+    "numpy>=2.3.5",
+    
+    # Token estimation
+    "tiktoken>=0.12.0",
+    
+    # YAML parsing for prompts
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

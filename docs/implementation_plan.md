@@ -1,5 +1,9 @@
 # NANA POC Implementation Plan
 
+> **Current Status**: Phase 2 in progress. PDF upload streams directly to Gemini (no local storage).
+>
+> **Next Up**: Complete Phase 2 - Implement PDF parsing service to extract text/metadata from Gemini-uploaded files.
+
 ## 1. Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
   - A dual-pane study environment: PDF page on the left, AI-generated notes on the right.
@@ -17,10 +21,10 @@
   - Inline command modal/toolbar to pick elaboration type.
   - Quiz panel that surfaces generated questions, captures answers, and updates topic mastery.
   - Consolidated view + download button for Markdown file.
-- **Backend/API Layer (FastAPI/Flask or lightweight Node server)**
-  - Handles PDF upload, orchestrates Gemini API calls, and returns structured responses.
-  - Performs chunking + embeddings + vector similarity search for retrieval.
-  - Maintains temporary JSON storage per session (filesystem or in-memory cache) keyed by upload session ID.
+- **Backend/API Layer (FastAPI)**
+  - Stateless: streams PDF directly to Gemini, returns `gemini_file_name` for client to store.
+  - Orchestrates Gemini API calls for parsing, generation, and retrieval.
+  - Performs chunking + embeddings + vector similarity search (in-memory per request).
   - Accepts user profile + topic mastery in requests to condition generation.
 
 ### 2.1 User Profile Schema
@@ -52,8 +56,8 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 - Topics are inferred from page content / chunk labels during quiz generation.
 
 ## 3. PDF Processing & Retrieval Pipeline
-1. **Upload**: user selects PDF; backend stores it in a temp directory.
-2. **Gemini Document Parsing**: send PDF to Gemini document-processing endpoint to extract text per page + structural metadata.
+1. **Upload**: user selects PDF; backend streams it directly to Gemini API (no local storage).
+2. **Gemini Document Parsing**: use the uploaded Gemini file reference to extract text per page + structural metadata.
 3. **Chunking**:
    - Split each page into semantic chunks (~200-300 tokens) with overlap to preserve context.
    - Keep references to page number and character offsets for citation.
@@ -106,11 +110,11 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 
 ## 6. Local Storage Strategy
 - Use browser storage for:
-  - Session ID, user profile (dropdown selections + free-text context).
+  - Gemini file reference (`gemini_file_name`), user profile (dropdown selections + free-text context).
   - Topic mastery scores (updated after each quiz).
   - Cached note responses per page.
   - Quiz history per page/topic.
-- Backend stores minimal JSON in `/tmp/nana_sessions/<session-id>.json` (writable root) containing chunk embeddings and retrieval metadata to avoid recomputing while session active.
+- Backend is stateless; PDFs are uploaded directly to Gemini and referenced by `gemini_file_name`. Chunk embeddings can be cached in-memory per request or stored client-side.
 - No persistent database; clearing browser data resets the experience.
 
 ## 7. Evaluation Hooks & Metrics
@@ -123,57 +127,59 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 ## 8. Implementation Phases & Tasks
 > Each phase lists the primary libraries/tools plus the reasoning behind the steps so future SWE can reproduce decisions quickly.
 
-1. **Environment & Skeleton Setup**
+- [x] 1. **Environment & Skeleton Setup**
    - *Libraries*: `FastAPI`, `uvicorn`, `httpx`, `pydantic` on backend; `React` + `Vite`, `TypeScript`, `Tailwind` (or CSS modules) on frontend; `pdfjs-dist` for rendering; `zustand` or `Redux Toolkit` for client state.
    - *Steps*: create repo structure (`frontend/`, `backend/`, `docs/`), configure `.venv` and install packages via `uv pip`. Set up `.env` template for Gemini API key and local file paths.
    - *Reasoning*: establishing a clear scaffold prevents ad-hoc script sprawl, while FastAPI + React is a well-known pairing that accelerates iteration and onboarding.
+   - ✅ *Done*: Backend structure (`backend/app/`), `pyproject.toml`, `.env.example`, prompt templates (`prompts/*.md`).
 
-2. **PDF Upload & Parsing Service**
-   - *Libraries*: `python-multipart` for FastAPI uploads, Google Gemini SDK (`google.generativeai`), local temp storage utilities.
-   - *Steps*: implement `/upload` endpoint that stores PDF under `/tmp/nana_sessions/<session-id>/source.pdf`, calls Gemini document-processing API, and saves returned page-wise text/metadata to JSON.
-   - *Reasoning*: centralizing parsing ensures consistent inputs for chunking/retrieval and avoids pushing raw PDFs back to the client.
+- [ ] 2. **PDF Upload & Parsing Service**
+   - *Libraries*: `python-multipart` for FastAPI uploads, Google Gemini SDK (`google.generativeai`).
+   - *Steps*: implement `/upload` endpoint that streams PDF directly to Gemini API via `genai.upload_file()`, returns `gemini_file_name` for subsequent calls. Parsing service uses this file reference to extract page-wise text/metadata.
+   - *Reasoning*: streaming directly to Gemini simplifies architecture (no local storage), reduces latency, and leverages Gemini's file handling.
+   - ⏳ *Partial*: Upload endpoint complete (streams to Gemini). Parsing service not yet implemented.
 
-3. **Chunking & Embedding Pipeline**
+- [ ] 3. **Chunking & Embedding Pipeline**
    - *Libraries*: `nltk` or `tiktoken` for token estimation, Gemini embedding endpoint (`text-embedding-004`), `numpy` for vector math.
-   - *Steps*: build chunker utility (200–300 token windows with 20% overlap), annotate each chunk with page IDs/citation offsets, embed via Gemini, and persist vectors plus metadata in a session JSON file.
-   - *Reasoning*: deterministic chunking + embeddings enable reproducible retrieval and citation mapping; storing alongside metadata avoids re-embedding during the session.
+   - *Steps*: build chunker utility (200–300 token windows with 20% overlap), annotate each chunk with page IDs/citation offsets, embed via Gemini, and cache vectors plus metadata in memory for the active request (and optionally mirror to browser storage).
+   - *Reasoning*: deterministic chunking + embeddings enable reproducible retrieval and citation mapping; caching in memory keeps the backend stateless while avoiding re-embedding during the same request.
 
-4. **Vector Retrieval Service**
+- [ ] 4. **Vector Retrieval Service**
    - *Libraries*: `faiss-cpu` (if allowed) or a lightweight cosine similarity helper using `numpy`.
-   - *Steps*: load vectors from session JSON into memory on request; implement `/retrieve` endpoint that accepts page number + optional highlight text, builds a query vector (average of embedding of query text + page title), filters by nearby pages, and returns top-k chunk payloads.
-   - *Reasoning*: a dedicated retrieval layer isolates similarity logic so prompt builders can rely on high-precision context.
+   - *Steps*: accept chunk vectors supplied in the request context (or in-memory cache), implement `/retrieve` endpoint that accepts page number + optional highlight text, builds a query vector (average of embedding of query text + page title), filters by nearby pages, and returns top-k chunk payloads.
+   - *Reasoning*: a dedicated retrieval layer isolates similarity logic so prompt builders can rely on high-precision context without introducing server-side persistence.
 
-5. **Prompt Orchestration & Notes Generation API**
+- [ ] 5. **Prompt Orchestration & Notes Generation API**
    - *Libraries*: internal prompt repository (see Section 11), FastAPI routers, `pydantic` schemas for request/response validation.
    - *Steps*: implement `/notes` endpoint that 1) fetches retrieved chunks, 2) loads the appropriate prompt template, 3) calls Gemini text endpoint, 4) validates JSON structure (title, bullets, citations) before returning to the client.
    - *Reasoning*: separating prompt configs from code simplifies iteration and enforces consistent generation outputs for notes vs. other actions.
 
-6. **Frontend Dual-Pane Experience**
+- [ ] 6. **Frontend Dual-Pane Experience**
    - *Libraries*: `pdfjs-dist` viewer component, `react-query` (or `tanstack/query`) for data fetching, `Tailwind` for layout.
    - *Steps*: implement upload/profile screen, page navigation, note render component with skeleton states, and local storage syncing via `zustand` or `localforage`.
    - *Reasoning*: building the UX early enables rapid manual validation of backend responses and ensures the PDF navigation constraints are well-understood.
 
-7. **Inline Highlight Command Actions**
+- [ ] 7. **Inline Highlight Command Actions**
    - *Libraries*: `selection-api` utilities, small headless UI component (e.g., `@headlessui/react`) for context menus/modals.
    - *Steps*: capture text selections in the notes pane, present command menu, collect tone/depth adjustments, call `/notes/actions` endpoint (which uses the inline command prompt), and patch the note block while keeping citation references.
    - *Reasoning*: centralizing all edits through the prompt API avoids diverging logic between initial notes and refinements, ensuring consistent grounding.
 
-8. **Quiz Generation & Mastery Tracking**
+- [ ] 8. **Quiz Generation & Mastery Tracking**
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.
    - *Steps*: add “Generate Quiz” button per page; endpoint uses quiz prompt template referencing current retrieval context + background + recent incorrect answers; frontend renders MCQ/free-response inputs, evaluates answers client-side using the returned key, and updates mastery JSON in local storage.
    - *Reasoning*: user-triggered quizzes align with requirement (no hardcoding) while mastery tracking showcases the closed-loop behavior even without a server DB.
 
-9. **Consolidated Markdown Export**
+- [ ] 9. **Consolidated Markdown Export**
    - *Libraries*: `remark`/`markdown-it` for preview (optional).
    - *Steps*: maintain normalized note objects per page; aggregation service stitches them into Markdown with headings and citations; provide download via Blob + anchor click.
    - *Reasoning*: Markdown keeps export simple, human-readable, and easy to convert to PDF later, meeting the printable doc requirement with minimal complexity.
 
-10. **Evaluation Logging & Telemetry**
+- [ ] 10. **Evaluation Logging & Telemetry**
     - *Libraries*: simple logging middleware (e.g., `structlog`) or JSON logging, browser `navigator.sendBeacon` for async telemetry.
     - *Steps*: log retrieval scores, prompt IDs used, latency metrics, quiz outcomes; provide endpoint to download logs for offline metric computation.
     - *Reasoning*: capturing metrics now enables future quantitative evaluation without re-instrumenting flows.
 
-11. **Polish, QA & Documentation**
+- [ ] 11. **Polish, QA & Documentation**
     - *Libraries*: `pytest` for backend unit tests, Playwright (optional) for smoke tests, linting via `ruff`/`eslint`.
     - *Steps*: run manual QA with diverse PDFs, verify background prompt injection respects char limits, ensure all prompts exist in repository, document setup/run instructions.
     - *Reasoning*: a final pass cements reliability and makes handoff easier for future engineers.
