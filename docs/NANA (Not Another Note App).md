@@ -36,9 +36,9 @@ Your study notes that study you.
 
 # Target Users & Personas
 
-- **Masters Students (primary):** juggling coursework, research, and jobs; need fast comprehension and tailored depth.
-- **Instructors/TAs (secondary):** want learner-aware handouts and analytics on difficult concepts.
-- **Professional Learners (secondary):** corporate training, certifications, and upskilling.
+- **Graduate Students (POC focus):** juggling coursework, research, and jobs; need fast comprehension and tailored depth. Typically have domain expertise in one area (e.g., DS/ML) but are learning adjacent fields.
+- *(Future) Instructors/TAs:* want learner-aware handouts and analytics on difficult concepts.
+- *(Future) Professional Learners:* corporate training, certifications, and upskilling.
 
 
 # AI/ML/DL Components
@@ -71,12 +71,11 @@ Your study notes that study you.
   positions via DTW for better sync. (ISSM – DTW)
 ---
 
+
 # Evaluation & Success Metrics
 
-- Learning gains (primary): pre/post concept quizzes; report Cohen’s d with
-  95% CI; target d ≥ 0.5 on the module. (PSPR)
-- Grounding & retrieval quality: Precision@k / nDCG@k on a small gold set;
-  citation coverage ≥ 90% and hallucination rate ≤ 5% on spot‑checks. (Cognitive
-  Systems, PRMLS)
-- UX & efficiency: SUS ≥ 80 and ≥ 20% reduction in time‑to‑understanding vs.
-  baseline tasks. (Cognitive Systems)
+> **POC scope:** Formal evaluation deferred. POC will log data to enable future analysis but will not implement pre/post quizzes or SUS instruments.
+
+- *(Deferred)* Learning gains: pre/post concept quizzes; report Cohen's d with 95% CI; target d >= 0.5.
+- **POC:** Grounding & retrieval quality: log retrieved chunk IDs; track citation coverage (target >= 90%) and flag empty citations.
+- *(Deferred)* UX & efficiency: SUS >= 80 and >= 20% reduction in time-to-understanding vs. baseline.

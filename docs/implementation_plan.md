@@ -10,16 +10,46 @@
 
 ## 2. System Architecture Overview
 - **Frontend (likely React/Vite or Next.js)**
-  - Upload PDF, capture open-ended background text (<=120 chars) stored client-side.
+  - Upload PDF and collect user profile via structured dropdowns (see Section 2.1).
   - Render PDF per page (pdf.js) with navigation controls.
   - Notes pane showing generated content for the selected page; supports text selection + action menu.
-  - Inline command modal/toolbar to pick elaboration type, tone, depth.
-  - Quiz panel that surfaces generated questions and captures answers.
+  - **Related Notes panel**: shows 2–3 embedding-similar note blocks from other pages for cross-topic linking.
+  - Inline command modal/toolbar to pick elaboration type.
+  - Quiz panel that surfaces generated questions, captures answers, and updates topic mastery.
   - Consolidated view + download button for Markdown file.
 - **Backend/API Layer (FastAPI/Flask or lightweight Node server)**
   - Handles PDF upload, orchestrates Gemini API calls, and returns structured responses.
   - Performs chunking + embeddings + vector similarity search for retrieval.
   - Maintains temporary JSON storage per session (filesystem or in-memory cache) keyed by upload session ID.
+  - Accepts user profile + topic mastery in requests to condition generation.
+
+### 2.1 User Profile Schema
+Collected via dropdowns on first use; stored client-side and passed to backend with each request.
+
+| Field | Options | Prompt Effect |
+|-------|---------|---------------|
+| **Prior Expertise** | Data Science/ML, Software Engineering, Statistics, Domain Novice | Shapes analogies & assumed vocabulary |
+| **Math Comfort** | No equations (words/intuition only), Light notation ok, Equation-heavy is fine | Controls formalism level |
+| **Detail Level** | Concise (bullets only), Balanced (paragraphs + bullets), Comprehensive (textbook depth) | Sets verbosity |
+| **Primary Goal** | Exam prep, Deep understanding, Quick reference | Prioritizes actionability vs. theory |
+
+Optional: short free-text field for additional context (e.g., "NLP researcher, new to signal processing").
+
+### 2.2 Topic Mastery Tracking (Closed-Loop)
+Stored client-side; updated after each quiz; passed to backend to condition future notes and quizzes.
+
+```json
+{
+  "topic_mastery": {
+    "transformer_architecture": { "score": 0.9, "attempts": 2, "last_updated": "..." },
+    "retrieval_augmented_generation": { "score": 0.4, "attempts": 3, "last_updated": "..." }
+  }
+}
+```
+
+- **Low mastery (< 0.5)**: notes include more examples, simpler language, more analogies; quizzes focus on fundamentals.
+- **High mastery (≥ 0.8)**: notes are concise summaries with advanced details; quizzes include harder application questions.
+- Topics are inferred from page content / chunk labels during quiz generation.
 
 ## 3. PDF Processing & Retrieval Pipeline
 1. **Upload**: user selects PDF; backend stores it in a temp directory.
@@ -38,37 +68,46 @@
 
 ## 4. Generation Flows (Gemini Text API)
 - **Notes Generation Prompt**:
-  - Inputs: user background string, selected page metadata, retrieved chunk texts, previous notes context (optional), desired style/depth if user specified via command.
-  - Output format: structured JSON (title, bullet notes, citations list referencing chunk IDs).
+  - Inputs: user profile (prior expertise, math comfort, detail level, goal), topic mastery scores, selected page metadata, retrieved chunk texts, previous notes context (optional).
+  - Prompt adjusts verbosity, analogy domain, and depth based on profile + mastery.
+  - Output format: structured JSON (title, bullet notes, topic_labels[], citations list referencing chunk IDs).
 - **Inline Command Prompt**:
   - Same inputs plus action type (elaborate/simplify/analogy/diagram instructions) and user-selected text.
   - Model returns a replacement snippet and refreshed citation list.
 - **Quiz Generation Prompt**:
-  - Inputs: background, set of retrieved chunks (same as notes), any recent incorrect answers.
-  1. Ask Gemini to produce N questions (mix of MCQ/short answer) with correct answers + rationales + citation refs.
-  2. Model also suggests remediation focus areas when accuracy < threshold.
+  - Inputs: user profile, topic mastery scores, retrieved chunks, recent incorrect answers.
+  - Low-mastery topics get more foundational questions; high-mastery topics get application/synthesis questions.
+  - Output: N questions (mix of MCQ/short answer) with correct answers, rationales, topic_label, and citation refs.
+  - Model also returns updated mastery adjustments (delta scores) based on expected difficulty.
+- **Related Notes Retrieval**:
+  - After notes are generated, embed the note block and query against all other note embeddings in the session.
+  - Return top 2–3 similar notes from different pages to display in the Related Notes panel.
+
 
 ## 5. Frontend UX Details
 - **Upload & Profile Step**:
-  - Text area for background (120 char limit, counter shown).
-  - Upload button; disable rest of UI until processing complete.
+  - Four dropdown selectors for user profile (Prior Expertise, Math Comfort, Detail Level, Primary Goal).
+  - Optional free-text field for additional context.
+  - Upload button; show progress indicator during processing (especially for large PDFs).
 - **Dual-Pane Layout**:
   - Left: pdf.js viewer with page thumbnails and navigation.
   - Right: note cards per page; show loading skeleton while generation runs.
+  - **Related Notes panel** (collapsible): displays 2-3 note snippets from other pages with high embedding similarity; clicking navigates to that page.
 - **Inline Commands**:
   - User highlights text; contextual menu pops up with options (Elaborate, Simplify, Analogy, Diagram).
-  - Selecting an option opens small dialog to tweak tone/length (predefined radio buttons).
+  - Selecting an option triggers regeneration of that note section.
 - **Quiz Panel**:
-  - Button “Generate Quiz for this Page/Section.”
+  - Button "Generate Quiz for this Page/Section."
   - Questions render sequentially with answer inputs.
-  - After submission, show correct answers + rationales and update mastery indicator (simple bar or icon) stored client-side.
+  - After submission: show correct answers + rationales, update topic mastery scores, and display mastery indicator per topic.
 - **Consolidated View**:
   - Tab that aggregates accepted notes across pages into Markdown preview.
-  - “Download Markdown” button triggers file download (Blob + `navigator.download`).
+  - "Download Markdown" button triggers file download.
 
 ## 6. Local Storage Strategy
 - Use browser storage for:
-  - Session ID, user background, preferences toggles.
+  - Session ID, user profile (dropdown selections + free-text context).
+  - Topic mastery scores (updated after each quiz).
   - Cached note responses per page.
   - Quiz history per page/topic.
 - Backend stores minimal JSON in `/tmp/nana_sessions/<session-id>.json` (writable root) containing chunk embeddings and retrieval metadata to avoid recomputing while session active.
@@ -141,7 +180,11 @@
 
 ## 9. Risks & Mitigations
 - **Gemini Latency/Cost**: cache per-page outputs and reuse when possible.
-- **Large PDFs**: enforce page/size limits (e.g., max 50 pages) for the POC to keep processing manageable.
+- **Large PDFs**: no hard page limit; mitigate with:
+  - Progress indicator during upload/processing.
+  - Lazy embedding: embed pages on-demand when user navigates (not all upfront).
+  - Aggressive caching per session to avoid recomputation.
+  - Warn user if processing will take >30s based on page count estimate.
 - **Citation Drift**: include chunk IDs directly in prompts; validate responses before displaying.
 - **Browser Storage Limits**: warn users when hitting threshold; allow manual export to JSON for safekeeping if needed.
 
