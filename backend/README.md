@@ -15,9 +15,8 @@ source ../.venv/bin/activate.fish
 cd ..
 uv pip install -e .
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env to add your GEMINI_API_KEY
+# Configure environment
+# Edit .env to add your GOOGLE_API_KEY
 ```
 
 ## Run
@@ -45,4 +44,4 @@ backend/
 ## API Endpoints
 
 - `GET /health` - Health check
-- `POST /api/upload` - Upload PDF, returns `gemini_file_name` for subsequent API calls
+- `POST /api/upload` - Upload PDF, returns parsed page content (text, has_images, has_tables per page)

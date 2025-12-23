@@ -17,8 +17,8 @@ dependencies = [
     # HTTP client
     "httpx>=0.28.1",
     
-    # Google Gemini SDK
-    "google-generativeai>=0.8.5",
+    # Google Gemini SDK (new unified SDK)
+    "google-genai>=1.0.0",
     
     # Vector operations
     "numpy>=2.3.5",

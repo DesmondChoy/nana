@@ -1,8 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 2 in progress. PDF upload streams directly to Gemini (no local storage).
+> **Current Status**: Phase 2 complete. PDF upload + parsing via Gemini 3 Flash (inline upload, no Files API).
 >
-> **Next Up**: Complete Phase 2 - Implement PDF parsing service to extract text/metadata from Gemini-uploaded files.
+> **Next Up**: Phase 3 - Chunking & Embedding Pipeline.
 
 ## 1. Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -22,7 +22,7 @@
   - Quiz panel that surfaces generated questions, captures answers, and updates topic mastery.
   - Consolidated view + download button for Markdown file.
 - **Backend/API Layer (FastAPI)**
-  - Stateless: streams PDF directly to Gemini, returns `gemini_file_name` for client to store.
+  - Stateless: sends PDF inline to Gemini 3 Flash, returns parsed page content for client to store.
   - Orchestrates Gemini API calls for parsing, generation, and retrieval.
   - Performs chunking + embeddings + vector similarity search (in-memory per request).
   - Accepts user profile + topic mastery in requests to condition generation.
@@ -56,8 +56,8 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 - Topics are inferred from page content / chunk labels during quiz generation.
 
 ## 3. PDF Processing & Retrieval Pipeline
-1. **Upload**: user selects PDF; backend streams it directly to Gemini API (no local storage).
-2. **Gemini Document Parsing**: use the uploaded Gemini file reference to extract text per page + structural metadata.
+1. **Upload & Parse**: user selects PDF; backend sends it inline to Gemini 3 Flash, which extracts text per page + structural metadata (has_images, has_tables) in a single call.
+2. **Client Storage**: parsed pages stored client-side; no server-side file persistence.
 3. **Chunking**:
    - Split each page into semantic chunks (~200-300 tokens) with overlap to preserve context.
    - Keep references to page number and character offsets for citation.
@@ -131,13 +131,13 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
    - *Libraries*: `FastAPI`, `uvicorn`, `httpx`, `pydantic` on backend; `React` + `Vite`, `TypeScript`, `Tailwind` (or CSS modules) on frontend; `pdfjs-dist` for rendering; `zustand` or `Redux Toolkit` for client state.
    - *Steps*: create repo structure (`frontend/`, `backend/`, `docs/`), configure `.venv` and install packages via `uv pip`. Set up `.env` template for Gemini API key and local file paths.
    - *Reasoning*: establishing a clear scaffold prevents ad-hoc script sprawl, while FastAPI + React is a well-known pairing that accelerates iteration and onboarding.
-   - ✅ *Done*: Backend structure (`backend/app/`), `pyproject.toml`, `.env.example`, prompt templates (`prompts/*.md`).
+   - ✅ *Done*: Backend structure (`backend/app/`), `pyproject.toml`, prompt templates (`prompts/*.md`).
 
-- [ ] 2. **PDF Upload & Parsing Service**
-   - *Libraries*: `python-multipart` for FastAPI uploads, Google Gemini SDK (`google.generativeai`).
-   - *Steps*: implement `/upload` endpoint that streams PDF directly to Gemini API via `genai.upload_file()`, returns `gemini_file_name` for subsequent calls. Parsing service uses this file reference to extract page-wise text/metadata.
-   - *Reasoning*: streaming directly to Gemini simplifies architecture (no local storage), reduces latency, and leverages Gemini's file handling.
-   - ⏳ *Partial*: Upload endpoint complete (streams to Gemini). Parsing service not yet implemented.
+- [x] 2. **PDF Upload & Parsing Service**
+   - *Libraries*: `python-multipart` for FastAPI uploads, Google Gemini SDK (`google-genai`).
+   - *Steps*: implement `/upload` endpoint that sends PDF inline to Gemini 3 Flash (`gemini-3-flash-preview`), extracts page-wise text + metadata (has_images, has_tables) in a single call, returns structured `ParsedPDF` response.
+   - *Reasoning*: inline upload (no Files API) simplifies architecture—single API call for upload + parse, no file reference management, no 48-hour expiration concerns.
+   - ✅ *Done*: Upload + parsing complete. Returns `{original_filename, total_pages, pages: [{page_number, text, has_images, has_tables}]}`.
 
 - [ ] 3. **Chunking & Embedding Pipeline**
    - *Libraries*: `nltk` or `tiktoken` for token estimation, Gemini embedding endpoint (`text-embedding-004`), `numpy` for vector math.

@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
     # Gemini API
-    gemini_api_key: str = ""
+    google_api_key: str = ""
+    gemini_model: str = "gemini-3-flash-preview"
 
     # Server
     host: str = "0.0.0.0"
