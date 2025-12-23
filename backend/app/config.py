@@ -22,10 +22,8 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
 
-    # Retrieval settings
-    chunk_size_tokens: int = 250
-    chunk_overlap_percent: float = 0.2
-    top_k_retrieval: int = 5
+    # Context settings (for notes generation)
+    adjacent_pages_context: int = 1  # Number of pages before/after to include as context
 
     model_config = {
         "env_file": ".env",
