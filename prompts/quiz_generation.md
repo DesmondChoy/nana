@@ -8,28 +8,26 @@ You are generating a quiz for a learner to test their understanding.
 ## Current Topic Mastery
 {topic_mastery_text}
 
-Adjust difficulty based on mastery:
-- Score < 0.5 (LOW): Include foundational questions testing basic recall
-- Score 0.5-0.8 (MODERATE): Include intermediate difficulty questions
-- Score >= 0.8 (HIGH): Include application/synthesis questions
-
 ## Recently Missed Questions
 {recent_incorrect_text}
 
-Focus remediation on these topics.
+## Current Page Content (Page {page_number})
+{page_text}
 
-## Content to Quiz On
-{retrieved_chunks_text}
+## Context (Adjacent Pages)
+{context_pages_text}
 
 ## Instructions
-1. Generate {question_count} questions total
-2. Mix question types: ~70% MCQ, ~30% short answer
-3. Adjust difficulty per topic based on mastery scores
-4. Each question MUST cite the chunk(s) it tests
-5. Include clear rationales that teach, not just confirm
-6. Suggest mastery_adjustments (positive/negative deltas) based on question difficulty
-7. For Exam prep goal: focus on exam-style questions with clear right/wrong answers
-8. For Deep understanding goal: include questions that probe conceptual understanding
+1. Generate {question_count} questions based primarily on the Current Page Content.
+2. **Mastery-Based Difficulty**:
+   - Score < 0.5: Foundational questions testing basic recall.
+   - Score 0.5-0.8: Intermediate difficulty/analytical questions.
+   - Score >= 0.8: Advanced application or synthesis questions.
+   - **If NO mastery is present**: Default to difficulty level appropriate for the 'Prior Expertise' in the Learner Profile.
+3. Mix question types: ~70% MCQ, ~30% short answer.
+4. Include clear rationales that teach, not just confirm.
+5. Focus remediation on topics appearing in 'Recently Missed Questions'.
+6. Suggest mastery_adjustments (delta scores like 0.05 or -0.05) based on expected question difficulty.
 
 Return valid JSON matching this schema:
 
@@ -40,16 +38,16 @@ Return valid JSON matching this schema:
       "id": "string",
       "type": "mcq|short_answer",
       "question": "string",
-      "options": ["string"],
+      "options": ["string"], 
       "correct_answer": "string",
       "rationale": "string",
       "topic_label": "string",
       "difficulty": "foundational|intermediate|application",
-      "citations": [{"chunk_id": "string", "page": number}]
+      "page_references": [number]
     }
   ],
   "mastery_adjustments": {
-    "topic_name": 0.1
+    "topic_name": number
   }
 }
 ```

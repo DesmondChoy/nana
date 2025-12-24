@@ -11,18 +11,10 @@ from google.genai import types
 from pydantic import BaseModel
 
 from app.config import get_settings
+from app.schemas import PageContent
 
 
 router = APIRouter()
-
-
-class PageContent(BaseModel):
-    """Content extracted from a single PDF page."""
-
-    page_number: int
-    text: str
-    has_images: bool = False
-    has_tables: bool = False
 
 
 class PDFExtractionResponse(BaseModel):

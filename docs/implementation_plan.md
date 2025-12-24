@@ -1,8 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 2 complete. PDF upload + parsing via Gemini 3 Flash (inline upload, no Files API).
+> **Current Status**: Phase 3 complete. Notes Generation API implemented with Pydantic Structured Outputs and Direct Context.
 >
-> **Next Up**: Phase 3 - Notes Generation API (simplified, no embedding pipeline).
+> **Next Up**: Phase 4 - Frontend Dual-Pane Experience.
 
 ## Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -131,10 +131,11 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
    - *Reasoning*: inline upload (no Files API) simplifies architecture—single API call for upload + parse, no file reference management, no 48-hour expiration concerns.
    - ✅ *Done*: Upload + parsing complete. Returns `{original_filename, total_pages, pages: [{page_number, text, has_images, has_tables}]}`.
 
-- [ ] 3. **Notes Generation API**
+- [x] 3. **Notes Generation API**
    - *Libraries*: internal prompt repository (see Prompt-Centric Functionality), FastAPI routers, `pydantic` schemas for request/response validation.
-   - *Steps*: implement `/notes` endpoint that 1) accepts page content + adjacent pages + user profile + mastery scores, 2) loads the notes generation prompt template, 3) calls Gemini text endpoint, 4) validates JSON structure (title, bullets, topic_labels, page_refs) before returning to the client.
-   - *Reasoning*: direct context passing (no chunking/retrieval) leverages Gemini's large context window. Simpler architecture, faster responses, no retrieval failure modes.
+   - *Steps*: implement `/notes` endpoint that 1) accepts page content + adjacent pages + user profile + mastery scores, 2) loads the notes generation prompt template, 3) calls Gemini text endpoint **configured with `response_schema` (Pydantic model) to strictly enforce the output format**, 4) returns the validated object to the client.
+   - *Reasoning*: direct context passing (no chunking/retrieval) leverages Gemini's large context window. **Using Gemini's native Structured Outputs guarantees valid JSON, reducing parsing errors and code complexity.**
+   - ✅ *Done*: Implemented `schemas.py`, `routers/notes.py`, updated `prompts/notes_generation.md` and registered router in `main.py`. Added tests in `backend/tests/`.
 
 - [ ] 4. **Frontend Dual-Pane Experience**
    - *Libraries*: `pdfjs-dist` viewer component, `react-query` (or `tanstack/query`) for data fetching, `Tailwind` for layout.
@@ -150,6 +151,7 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.
    - *Steps*: add "Generate Quiz" button per page; endpoint uses quiz prompt template referencing page content + user profile + mastery + recent incorrect answers; frontend renders MCQ/free-response inputs, evaluates answers client-side using the returned key, and updates mastery JSON in local storage.
    - *Reasoning*: user-triggered quizzes align with requirement (no hardcoding) while mastery tracking showcases the closed-loop behavior even without a server DB.
+   - ✅ *Progress*: Updated `prompts/quiz_generation.md` to align with Direct Context architecture.
 
 - [ ] 7. **Consolidated Markdown Export**
    - *Libraries*: `remark`/`markdown-it` for preview (optional).
@@ -176,8 +178,8 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 - **Browser Storage Limits**: warn users when hitting threshold; allow manual export to JSON for safekeeping if needed.
 
 ## Next Steps
-- Implement Phase 3: Notes Generation API endpoint.
-- Begin frontend scaffolding (Phase 4) in parallel if resources allow.
+- Begin Phase 4: Frontend scaffolding and dual-pane experience.
+- Implement backend endpoint for Phase 6 (Quiz Generation).
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.
