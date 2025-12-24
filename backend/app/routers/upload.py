@@ -5,8 +5,6 @@ Handles PDF file uploads and extracts page-wise text using Gemini 3 Flash.
 Uses inline upload (no Files API) for simplicity.
 """
 
-import json
-
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from google import genai
 from google.genai import types
@@ -27,6 +25,11 @@ class PageContent(BaseModel):
     has_tables: bool = False
 
 
+class PDFExtractionResponse(BaseModel):
+    """Structure for the LLM response."""
+    pages: list[PageContent]
+
+
 class ParsedPDF(BaseModel):
     """Response containing extracted content from all pages."""
 
@@ -42,18 +45,6 @@ For each page, provide:
 2. The full text content
 3. Whether the page contains images (true/false)
 4. Whether the page contains tables (true/false)
-
-Return ONLY valid JSON in this exact format, with no additional text:
-{
-  "pages": [
-    {
-      "page_number": 1,
-      "text": "The extracted text content...",
-      "has_images": false,
-      "has_tables": false
-    }
-  ]
-}
 
 Extract ALL pages. Preserve paragraph structure. Include all text, headings, captions, and footnotes."""
 
@@ -94,31 +85,19 @@ async def upload_and_parse_pdf(file: UploadFile = File(...)) -> ParsedPDF:
                 ),
                 EXTRACTION_PROMPT,
             ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=PDFExtractionResponse,
+            ),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
     # Parse the JSON response
     try:
-        response_text = response.text.strip()
-        # Handle potential markdown code blocks in response
-        if response_text.startswith("```"):
-            response_text = response_text.split("```")[1]
-            if response_text.startswith("json"):
-                response_text = response_text[4:]
-            response_text = response_text.strip()
-
-        parsed = json.loads(response_text)
-        pages = [
-            PageContent(
-                page_number=p["page_number"],
-                text=p["text"],
-                has_images=p.get("has_images", False),
-                has_tables=p.get("has_tables", False),
-            )
-            for p in parsed["pages"]
-        ]
-    except (json.JSONDecodeError, KeyError) as e:
+        parsed_response: PDFExtractionResponse = response.parsed
+        pages = parsed_response.pages
+    except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse Gemini response: {e}",

@@ -17,11 +17,6 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
 
-    # Server
-    host: str = "0.0.0.0"
-    port: int = 8000
-    debug: bool = False
-
     # Context settings (for notes generation)
     adjacent_pages_context: int = 1  # Number of pages before/after to include as context
 

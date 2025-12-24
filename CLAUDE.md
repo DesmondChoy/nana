@@ -1,13 +1,13 @@
-# AGENTS.md
+# CLAUDE.md
 
 ## One-Word Commands
 Quick shortcuts for common tasks:
 
 - `$update`: Update memory-bank to reflect session changes. No opinionated remarks - ask for clarification when unsure.
-- `$craft`: Generate high-quality conventional commit messages for this session’s changes (do not commit; user reviews first).
+- `$craft`: Generate a high-quality conventional commit message for this session’s changes (do not commit; user reviews first).
   - Behavior:
     - Inspect staged/unstaged changes and summarize what changed and why.
-    - Propose a single commit or multiple commits if the work is logically separable.
+    - Always propose a single combined commit for all changes in the session.
   - Output format (no extra prose; emit only commit message text in code fences):
     - Single commit:
       ```
@@ -24,7 +24,6 @@ Quick shortcuts for common tasks:
       Revert plan:
       - <how to undo safely>
       ```
-    - Multiple commits: output multiple blocks separated by a line with three dashes `---`.
   - Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert.
   - Conventions:
     - Subject ≤ 50 chars, imperative mood; wrap body at ~72 chars.
