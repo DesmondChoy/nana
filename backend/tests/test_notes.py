@@ -8,12 +8,17 @@ client = TestClient(app)
 # Mock Data
 VALID_PAYLOAD = {
     "current_page": {
-        "page_number": 1,
+        "page_number": 2,
         "text": "Transformers are deep learning models...",
         "has_images": False,
         "has_tables": False
     },
-    "context_pages": [],
+    "previous_page": {
+        "page_number": 1,
+        "text": "Introduction to neural networks...",
+        "has_images": False,
+        "has_tables": False
+    },
     "user_profile": {
         "prior_expertise": "Novice",
         "math_comfort": "No equations",

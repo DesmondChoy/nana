@@ -31,7 +31,7 @@ class TopicMastery(BaseModel):
 class NotesRequest(BaseModel):
     """Request payload for generating notes for a specific page."""
     current_page: PageContent
-    context_pages: List[PageContent] = Field(default_factory=list, description="Adjacent pages for context")
+    previous_page: Optional[PageContent] = Field(None, description="Previous page (N-1) for continuity context")
     user_profile: UserProfile
     topic_mastery: Dict[str, TopicMastery] = Field(default_factory=dict, description="Map of topic IDs to mastery scores")
     previous_notes_context: Optional[str] = Field(None, description="Summary or text of previous notes for continuity")

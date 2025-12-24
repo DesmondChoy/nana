@@ -13,9 +13,9 @@
 - Out of scope: premium features (web recs, mind maps, gamification, advanced search, provenance UI), handwriting OCR, and multi-user persistence.
 
 ## System Architecture Overview
-- **Frontend (likely React/Vite or Next.js)**
+- **Frontend (React + Vite + TypeScript)**
   - Upload PDF and collect user profile via structured dropdowns (see User Profile Schema below).
-  - Render PDF per page (pdf.js) with navigation controls.
+  - Render PDF per page (`react-pdf` wrapper over PDF.js) with navigation controls.
   - Notes pane showing generated content for the selected page; supports text selection + action menu.
   - **Related Notes panel** (deferred to v2): cross-topic linking via keyword matching or LLM-identified relationships.
   - Inline command modal/toolbar to pick elaboration type.
@@ -59,12 +59,49 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 1. **Upload & Parse**: user selects PDF; backend sends it inline to Gemini 3 Flash, which extracts text per page + structural metadata (has_images, has_tables) in a single call.
 2. **Client Storage**: parsed pages stored client-side; no server-side file persistence.
 3. **Context Assembly** (replaces chunking/embedding/retrieval):
-   - When generating notes for page N, send: current page text + adjacent pages (N-1, N+1) for context.
-   - Gemini's 1M token context window can handle entire PDFs; no chunking or vector search needed.
+   - For notes generation: send current page text + previous page (N-1) for continuity context. No lookahead (N+1) to avoid notes referencing content the user hasn't seen yet.
    - For inline commands: send selected text + full page context.
    - For quizzes: send relevant page(s) content + user mastery scores.
+   - For consolidated export: send full PDF content in single call.
 
 > **Rationale**: A typical 100-page academic PDF is ~50-100K tokens, well within Gemini's context limit. The RAG pattern (chunk → embed → retrieve) solves a constraint that doesn't exist here. Direct context passing is simpler, faster, and eliminates retrieval failure modes.
+
+## Two Output Types & Generation Strategies
+
+The system produces two distinct outputs with different generation strategies:
+
+### 1. Dual-Pane Study Notes (Lesson Companion)
+**Purpose**: Aid understanding during lecture—notes stay in sync with PDF pages as user follows along.
+
+**Generation Strategy**: Eager Sequential Generation
+- **Trigger**: Automatically after PDF upload + user profile selection
+- **Execution**: Sequential LLM calls, one per page (can upgrade to parallel later)
+- **Context per call**: Page N text + previous page (N-1) for continuity (no lookahead to avoid spoilers)
+- **Progress UX**: "Generating notes... 12/42 pages complete" with early access to completed pages
+- **Storage**: All notes cached client-side; navigation is instant once generated
+
+```
+Upload PDF → Select Profile → [Generate page 1] → [Generate page 2] → ... → All ready
+                                     ↓
+                    (User can start viewing page 1 immediately)
+```
+
+**Why not single batch?** A single call returning structured notes for all pages could hit output token limits and provides no progressive feedback during the 30-60s generation time.
+
+### 2. Consolidated Study Notes (Export)
+**Purpose**: Polished, printable document synthesizing all notes into coherent flow.
+
+**Generation Strategy**: Single Batch Call
+- **Trigger**: User explicitly clicks "Export" after reviewing dual-pane notes
+- **Execution**: One LLM call with full PDF content + all generated notes
+- **Context**: Entire document—LLM can deduplicate concepts, create transitions, add summary
+- **UX**: User expects a wait; show progress indicator
+
+```
+User clicks "Export" → [Single LLM call with full context] → Markdown download
+```
+
+**Why batch?** Synthesis requires global context—the LLM needs to see everything to create coherent flow, deduplicate repeated concepts, and produce a unified document.
 
 ## Generation Flows (Gemini Text API)
 - **Notes Generation Prompt**:
@@ -85,11 +122,13 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 - **Upload & Profile Step**:
   - Four dropdown selectors for user profile (Prior Expertise, Math Comfort, Detail Level, Primary Goal).
   - Optional free-text field for additional context.
-  - Upload button; show progress indicator during processing (especially for large PDFs).
+  - Upload button; after upload, notes generation begins automatically.
+  - Progress indicator: "Generating notes... 12/42 pages" with option to view completed pages early.
 - **Dual-Pane Layout**:
-  - Left: pdf.js viewer with page thumbnails and navigation.
-  - Right: note cards per page; show loading skeleton while generation runs.
-  - **Related Notes panel** (collapsible): displays 2-3 note snippets from other pages with high embedding similarity; clicking navigates to that page.
+  - Left: `react-pdf` viewer with page thumbnails and navigation.
+  - Right: note cards for the current page; synchronized with PDF navigation.
+  - **Page Sync Behavior**: When user navigates to page N, notes pane displays pre-generated notes for page N (instant, from cache).
+  - **Related Notes panel** (collapsible, deferred to v2): displays 2-3 note snippets from other pages with high embedding similarity; clicking navigates to that page.
 - **Inline Commands**:
   - User highlights text; contextual menu pops up with options (Elaborate, Simplify, Analogy, Diagram).
   - Selecting an option triggers regeneration of that note section.
@@ -102,12 +141,13 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
   - "Download Markdown" button triggers file download.
 
 ## Local Storage Strategy
-- Use browser storage for:
-  - Gemini file reference (`gemini_file_name`), user profile (dropdown selections + free-text context).
+- Use Zustand's `persist` middleware for browser storage:
+  - User profile (dropdown selections + free-text context).
   - Topic mastery scores (updated after each quiz).
   - Cached note responses per page.
+  - Parsed PDF content (text per page + metadata).
   - Quiz history per page/topic.
-- Backend is stateless; parsed PDF content is stored client-side. No server-side persistence.
+- Backend is stateless; all client data persisted via Zustand stores with localStorage. No server-side persistence.
 - No persistent database; clearing browser data resets the experience.
 
 ## Evaluation Hooks & Metrics
@@ -120,9 +160,9 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 > Each phase lists the primary libraries/tools plus the reasoning behind the steps so future SWE can reproduce decisions quickly.
 
 - [x] 1. **Environment & Skeleton Setup**
-   - *Libraries*: `FastAPI`, `uvicorn`, `httpx`, `pydantic` on backend; `React` + `Vite`, `TypeScript`, `Tailwind` (or CSS modules) on frontend; `pdfjs-dist` for rendering; `zustand` or `Redux Toolkit` for client state.
+   - *Libraries*: `FastAPI`, `uvicorn`, `httpx`, `pydantic` on backend; `React` + `Vite`, `TypeScript`, `Tailwind` on frontend; `react-pdf` for PDF rendering; `zustand` for client state (with `persist` middleware for localStorage); `@tanstack/react-query` for data fetching.
    - *Steps*: create repo structure (`frontend/`, `backend/`, `docs/`), configure `.venv` and install packages via `uv pip`. Set up `.env` template for Gemini API key and local file paths.
-   - *Reasoning*: establishing a clear scaffold prevents ad-hoc script sprawl, while FastAPI + React is a well-known pairing that accelerates iteration and onboarding.
+   - *Reasoning*: establishing a clear scaffold prevents ad-hoc script sprawl, while FastAPI + React is a well-known pairing that accelerates iteration and onboarding. `react-pdf` provides a React-native API over PDF.js, reducing setup friction. `zustand` offers minimal boilerplate with built-in persistence. `@tanstack/react-query` provides DevTools, garbage collection, and mutation support for API calls.
    - ✅ *Done*: Backend structure (`backend/app/`), `pyproject.toml`, prompt templates (`prompts/*.md`).
 
 - [x] 2. **PDF Upload & Parsing Service**
@@ -138,9 +178,14 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
    - ✅ *Done*: Implemented `schemas.py`, `routers/notes.py`, updated `prompts/notes_generation.md` and registered router in `main.py`. Added tests in `backend/tests/`.
 
 - [ ] 4. **Frontend Dual-Pane Experience**
-   - *Libraries*: `pdfjs-dist` viewer component, `react-query` (or `tanstack/query`) for data fetching, `Tailwind` for layout.
-   - *Steps*: implement upload/profile screen, page navigation, note render component with skeleton states, and local storage syncing via `zustand` or `localforage`.
-   - *Reasoning*: building the UX early enables rapid manual validation of backend responses and ensures the PDF navigation constraints are well-understood.
+   - *Libraries*: `react-pdf` for PDF viewing (React-native wrapper over PDF.js), `@tanstack/react-query` for data fetching/caching, `zustand` with `persist` middleware for state + localStorage, `Tailwind` for layout.
+   - *Steps*:
+     1. Implement upload screen with user profile dropdowns.
+     2. After upload + profile selection, trigger eager sequential notes generation (one API call per page with previous page context).
+     3. Show generation progress ("12/42 pages") with early access to completed pages.
+     4. Build dual-pane layout: PDF viewer (left) synced with notes display (right).
+     5. Cache all generated notes in Zustand store; page navigation displays cached notes instantly.
+   - *Reasoning*: Eager generation ensures notes are ready before the lecture. Sequential per-page calls with adjacent context provide continuity while avoiding output token limits. `react-pdf` reduces PDF.js boilerplate. Zustand's persist middleware consolidates state + storage in one pattern.
 
 - [ ] 5. **Inline Highlight Command Actions**
    - *Libraries*: `selection-api` utilities, small headless UI component (e.g., `@headlessui/react`) for context menus/modals.
@@ -155,8 +200,12 @@ Stored client-side; updated after each quiz; passed to backend to condition futu
 
 - [ ] 7. **Consolidated Markdown Export**
    - *Libraries*: `remark`/`markdown-it` for preview (optional).
-   - *Steps*: maintain normalized note objects per page; aggregation service stitches them into Markdown with headings and page references; provide download via Blob + anchor click.
-   - *Reasoning*: Markdown keeps export simple, human-readable, and easy to convert to PDF later, meeting the printable doc requirement with minimal complexity.
+   - *Steps*:
+     1. User clicks "Export" button after reviewing dual-pane notes.
+     2. Frontend sends single API call with full PDF content + all generated page notes.
+     3. Backend uses consolidation prompt to synthesize: deduplicate concepts, create transitions, add summary.
+     4. Return polished Markdown; provide download via Blob + anchor click.
+   - *Reasoning*: Single batch call enables global context—LLM sees entire document to create coherent flow. Markdown keeps export simple, human-readable, and easy to convert to PDF later.
 
 - [ ] 8. **Evaluation Logging & Telemetry**
     - *Libraries*: simple logging middleware (e.g., `structlog`) or JSON logging, browser `navigator.sendBeacon` for async telemetry.

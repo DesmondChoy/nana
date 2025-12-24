@@ -8,22 +8,31 @@ Your study notes that study you.
 
 # How It works
 
-1. **User Profile (UP)**: Background, knowledge gaps, style preferences, language/level.  
-2. **Lecture Materials (LM):** parse slides, PDFs, notes; chunk semantically; embed and index.  
-3. **Study Notes (SN):** LLM uses UP + retrieved LM chunks to produce notes.  
-4. **Dual-Pane UX:** left = LM, right = context-synchronized SN; “Related” panel surfaces past SN for conceptual links.  
-   Provide **inline editing/commands** (elaborate, simplify, create diagram).
-   Manual handwriting --> Pattern recognition
-5. **Assessment Loop:** quick quizzes; results update UP and future generations. 
+1. **User Profile (UP)**: Background, knowledge gaps, style preferences, language/level—collected via dropdowns before notes generation. UP conditions all subsequent LLM calls.
+2. **Lecture Materials (LM):** Parse PDF via Gemini; extract text + metadata per page. No chunking/embedding—Gemini's 1M token context window allows direct context passing.
+3. **Study Notes (SN):** Eager sequential generation **conditioned on UP**—after upload, generate notes for all pages automatically. Each LLM call receives:
+   - Current page text + previous page (for continuity)
+   - **User profile** (prior expertise, math comfort, detail level, goal)
+   - Topic mastery scores (if available from prior quizzes)
+
+   Notes are tailored to the learner: a "Domain Novice" gets more analogies; "Equation-heavy is fine" enables formal notation. Cached client-side for instant navigation.
+4. **Dual-Pane UX:** Left = PDF page, right = pre-generated notes for current page (synchronized with navigation).
+   - Provide **inline editing/commands** (elaborate, simplify, create diagram)—also conditioned on UP.
+   - *(Deferred)* "Related" panel surfaces past SN for conceptual links.
+5. **Consolidated Export:** Single batch LLM call synthesizes all page notes into polished, printable Markdown—**conditioned on UP** for consistent tone/depth.
+6. **Assessment Loop:** User-triggered quizzes; results update topic mastery scores in UP, which condition future note generations and quiz difficulty. 
 
 ## Key Features
 
-- **Side-by-side dynamic notes** that follow the learner’s scroll position.
-- **Two outputs:** in-flow companion and **consolidated** printable doc.
-- **Highlight-to-command** editing (elaborate, simplify, add analogies/diagrams).
-- **Knowledge tracing lite:** quizzes trigger targeted remediation.
-- **Cross-topic linking:** references to past SNs to build a concept map.
-- **Versioning & provenance:** every SN cites source spans and generation settings.
+- **Profile-conditioned notes**: Every generation adapts to the learner's expertise, math comfort, detail preference, and learning goal.
+- **Side-by-side dynamic notes** that follow the learner's page navigation (pre-generated, instant display).
+- **Two outputs with different strategies:**
+  - *Dual-pane notes*: Eager per-page generation with previous page context—ready for lecture, tailored to UP.
+  - *Consolidated export*: Single batch synthesis—polished printable document, consistent with UP settings.
+- **Highlight-to-command** editing (elaborate, simplify, add analogies/diagrams)—transformations respect UP preferences.
+- **Knowledge tracing lite:** quizzes trigger targeted remediation; mastery scores feed back into note generation.
+- *(Deferred)* **Cross-topic linking:** references to past SNs to build a concept map.
+- *(Deferred)* **Versioning & provenance:** every SN cites source spans and generation settings.
 
 ## Premium Features
 
@@ -43,32 +52,20 @@ Your study notes that study you.
 
 # AI/ML/DL Components
 
-- Retrieval fusion (dense + lexical): combine embeddings with BM25 via
-  Reciprocal Rank Fusion to maximize recall while staying on-topic. (PRMLS –
-  Transformers; PSPR – IR)
-- Rerank fusion (neural + lexical): cross‑encoder scores combined with lexical
-  scores using learned weights/min‑max normalization for precision. (PRMLS – DL)
-- Profile‑conditioned, citation‑guarded generation: tailor tone/level using the
-  learner profile; require citations to retrieved spans. (Reasoning Systems –
-  LLMs; Cognitive Systems – NLG)
-- Command NLU (intent + slots): map highlight commands to structured actions
-  and parameters. (Cognitive Systems – NLU)
-- Feature‑level fusion for mastery: fuse quiz correctness, response time,
-  dwell/scroll, and edit types into a mastery classifier (logistic/NB). (PSPR –
-  Supervised Evaluation)
-- Decision‑level fusion for adaptation: weighted voting between mastery model,
-  heuristic rules, and instructor constraints to choose depth/examples/quiz
-  difficulty. (Reasoning Systems – Hybrid/Co‑operating Experts)
-- Knowledge‑neural fusion for links: merge knowledge‑graph edges (co‑occurrence,
-  prerequisites) with embedding similarity to surface related concepts.
-  (Reasoning Systems – Knowledge Graphs; PRMLS – Embeddings)
-- Self‑consistency/prompt ensemble: generate multiple candidate explanations
-  and select via a small verifier or ranker. (Reasoning Systems – Competing
-  Experts)
-- Optional – Handwriting + text fusion: CNN OCR with language‑model cleanup to
-  align handwritten notes to slides. (CNNs)
-- Optional – Temporal alignment fusion: align audio/slide timestamps and note
-  positions via DTW for better sync. (ISSM – DTW)
+## POC Architecture (Direct Context)
+- **Profile‑conditioned generation**: Tailor tone/level/depth using learner profile passed to each LLM call. (Reasoning Systems – LLMs; Cognitive Systems – NLG)
+- **Previous-page context**: Include N-1 page text for continuity (no N+1 lookahead to avoid notes referencing unseen content)—no chunking/embedding needed due to Gemini's 1M token context window.
+- **Structured Outputs**: Gemini's native `response_schema` enforces valid JSON, reducing parsing errors.
+- **Mastery-adaptive generation**: Quiz results update topic mastery scores; future notes/quizzes conditioned on mastery level.
+
+## Deferred / Future Components
+- *(Deferred)* Retrieval fusion (dense + lexical): combine embeddings with BM25 via Reciprocal Rank Fusion—useful if scaling beyond single-PDF context.
+- *(Deferred)* Rerank fusion (neural + lexical): cross‑encoder scores for precision—applicable for multi-document scenarios.
+- *(Deferred)* Command NLU (intent + slots): map highlight commands to structured actions. POC uses explicit button actions instead.
+- *(Deferred)* Feature‑level fusion for mastery: fuse quiz correctness, response time, dwell/scroll into mastery classifier. POC uses simple score tracking.
+- *(Deferred)* Knowledge‑neural fusion for links: merge knowledge‑graph edges with embedding similarity for cross-topic linking.
+- *(Optional)* Handwriting + text fusion: CNN OCR with language‑model cleanup.
+- *(Optional)* Temporal alignment fusion: align audio/slide timestamps via DTW.
 ---
 
 

@@ -2,7 +2,7 @@
 Notes Generation Router.
 
 Generates study notes for a specific PDF page using Gemini 3 Flash.
-Uses 'Direct Context' (page + adjacent pages) instead of RAG.
+Uses 'Direct Context' (current page + previous page for continuity) instead of RAG.
 Enforces structured JSON output via Pydantic schemas.
 """
 
@@ -42,14 +42,12 @@ async def generate_notes(request: NotesRequest) -> NotesResponse:
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # Format Context Pages
-    context_text = ""
-    if request.context_pages:
-        context_text = "\n\n".join(
-            [f"--- Page {p.page_number} ---\n{p.text}" for p in request.context_pages]
-        )
+    # Format Previous Page Context
+    previous_page_text = ""
+    if request.previous_page:
+        previous_page_text = f"--- Page {request.previous_page.page_number} ---\n{request.previous_page.text}"
     else:
-        context_text = "(No adjacent pages provided)"
+        previous_page_text = "(No previous page - this is page 1)"
 
     # Format Topic Mastery
     mastery_text = ""
@@ -75,7 +73,7 @@ async def generate_notes(request: NotesRequest) -> NotesResponse:
             topic_mastery_text=mastery_text,
             page_number=request.current_page.page_number,
             page_text=request.current_page.text,
-            context_pages_text=context_text,
+            previous_page_text=previous_page_text,
             previous_notes_text=request.previous_notes_context or "(None)"
         )
     except KeyError as e:

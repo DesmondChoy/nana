@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
 
-    # Context settings (for notes generation)
-    adjacent_pages_context: int = 1  # Number of pages before/after to include as context
+    # Note: Context for notes generation is handled at the API layer
+    # (previous_page passed explicitly in NotesRequest)
 
     model_config = {
         "env_file": ".env",
