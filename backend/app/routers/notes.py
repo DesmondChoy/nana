@@ -8,11 +8,11 @@ Enforces structured JSON output via Pydantic schemas.
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from google import genai
 from google.genai import types
 
-from app.config import get_settings
+from app.config import Settings, get_gemini_client, get_settings
 from app.schemas import NotesRequest, NotesResponse
 
 router = APIRouter()
@@ -29,14 +29,14 @@ def load_prompt_template(filename: str) -> str:
     return prompt_path.read_text(encoding="utf-8")
 
 @router.post("/notes", response_model=NotesResponse)
-async def generate_notes(request: NotesRequest) -> NotesResponse:
+async def generate_notes(
+    request: NotesRequest,
+    settings: Settings = Depends(get_settings),
+    client: genai.Client = Depends(get_gemini_client),
+) -> NotesResponse:
     """
     Generate study notes for a page using user profile and context.
     """
-    settings = get_settings()
-    if not settings.google_api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY not configured")
-
     try:
         prompt_template = load_prompt_template("notes_generation.md")
     except FileNotFoundError as e:
@@ -58,11 +58,6 @@ async def generate_notes(request: NotesRequest) -> NotesResponse:
         mastery_text = "(No prior mastery data)"
 
     # Fill Prompt
-    # Note: We use .format() but need to be careful with JSON braces in the prompt if any.
-    # The prompt template was updated to remove the explicit JSON example and rely on response_schema,
-    # so we should be safe. If the prompt has other curly braces, we might need to escape them or use jinja2.
-    # Looking at the file, it has standard text.
-    
     try:
         filled_prompt = prompt_template.format(
             prior_expertise=request.user_profile.prior_expertise,
@@ -78,8 +73,6 @@ async def generate_notes(request: NotesRequest) -> NotesResponse:
         )
     except KeyError as e:
          raise HTTPException(status_code=500, detail=f"Prompt formatting error: Missing key {e}")
-
-    client = genai.Client(api_key=settings.google_api_key)
 
     try:
         # We use a lower temperature for structured generation to be consistent

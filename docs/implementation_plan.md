@@ -1,8 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 3 complete. Notes Generation API implemented with Pydantic Structured Outputs and Direct Context.
+> **Current Status**: Phase 4 in progress. Frontend dual-pane experience scaffolded with PDF rendering and notes display.
 >
-> **Next Up**: Phase 4 - Frontend Dual-Pane Experience.
+> **Next Up**: Phase 4 completion (keyboard nav, error retry) or Phase 5 (Inline Commands).
 
 ## Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -144,9 +144,15 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - Use Zustand's `persist` middleware for browser storage:
   - User profile (dropdown selections + free-text context).
   - Topic mastery scores (updated after each quiz).
-  - Cached note responses per page.
-  - Parsed PDF content (text per page + metadata).
-  - Quiz history per page/topic.
+  - Cached note responses per page (`notesCache`).
+  - Cached filename to detect same-file re-uploads (`cachedFilename`).
+  - Current page number for session continuity.
+  - Quiz history per page/topic (Phase 6).
+- **Not persisted** (too large, session-only):
+  - Parsed PDF content (`parsedPDF`) — re-extracted on upload.
+  - PDF blob URL (`pdfFileUrl`) — invalid after refresh anyway.
+- **Storage quota handling**: Custom `safeStorage` wrapper catches `QuotaExceededError`, emits event for UI warning banner, continues working in-memory for current session.
+- **Same-file detection**: If user re-uploads same filename, notes cache is preserved (skips regeneration for cached pages).
 - Backend is stateless; all client data persisted via Zustand stores with localStorage. No server-side persistence.
 - No persistent database; clearing browser data resets the experience.
 
@@ -177,15 +183,24 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
    - *Reasoning*: direct context passing (no chunking/retrieval) leverages Gemini's large context window. **Using Gemini's native Structured Outputs guarantees valid JSON, reducing parsing errors and code complexity.**
    - ✅ *Done*: Implemented `schemas.py`, `routers/notes.py`, updated `prompts/notes_generation.md` and registered router in `main.py`. Added tests in `backend/tests/`.
 
-- [ ] 4. **Frontend Dual-Pane Experience**
+- [~] 4. **Frontend Dual-Pane Experience**
    - *Libraries*: `react-pdf` for PDF viewing (React-native wrapper over PDF.js), `@tanstack/react-query` for data fetching/caching, `zustand` with `persist` middleware for state + localStorage, `Tailwind` for layout.
    - *Steps*:
-     1. Implement upload screen with user profile dropdowns.
-     2. After upload + profile selection, trigger eager sequential notes generation (one API call per page with previous page context).
-     3. Show generation progress ("12/42 pages") with early access to completed pages.
-     4. Build dual-pane layout: PDF viewer (left) synced with notes display (right).
-     5. Cache all generated notes in Zustand store; page navigation displays cached notes instantly.
+     1. ✅ Implement upload screen with user profile dropdowns.
+     2. ✅ After upload + profile selection, trigger eager sequential notes generation (one API call per page with previous page context).
+     3. ✅ Show generation progress ("12/42 pages") with early access to completed pages.
+     4. ✅ Build dual-pane layout: PDF viewer (left) synced with notes display (right).
+     5. ✅ Cache all generated notes in Zustand store; page navigation displays cached notes instantly.
    - *Reasoning*: Eager generation ensures notes are ready before the lecture. Sequential per-page calls with adjacent context provide continuity while avoiding output token limits. `react-pdf` reduces PDF.js boilerplate. Zustand's persist middleware consolidates state + storage in one pattern.
+   - ✅ *Progress*:
+     - Frontend scaffolded: `frontend/` with Vite + React + TypeScript + Tailwind.
+     - Zustand stores: `userStore.ts` (profile, mastery), `pdfStore.ts` (PDF, notes cache).
+     - API client: `api/client.ts` with `uploadPDF()` and `generateNotes()`.
+     - Pages: `UploadPage.tsx` (profile dropdowns, drag-drop upload), `StudyPage.tsx` (dual-pane layout).
+     - Components: `PDFViewer.tsx` (react-pdf with zoom controls), `NotesPanel.tsx`, `GenerationProgress.tsx`, `StorageWarning.tsx`.
+     - Storage handling: Custom `safeStorage` with quota error handling; `partialize` excludes large data.
+     - Inline command prompts updated from RAG to Direct Context architecture.
+   - *Remaining*: Keyboard navigation, error retry for failed pages, polish.
 
 - [ ] 5. **Inline Highlight Command Actions**
    - *Libraries*: `selection-api` utilities, small headless UI component (e.g., `@headlessui/react`) for context menus/modals.
@@ -227,7 +242,8 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Browser Storage Limits**: warn users when hitting threshold; allow manual export to JSON for safekeeping if needed.
 
 ## Next Steps
-- Begin Phase 4: Frontend scaffolding and dual-pane experience.
+- Complete Phase 4: Add keyboard navigation (arrow keys), error retry for failed note generation.
+- Begin Phase 5: Inline highlight command actions (elaborate, simplify, analogy, diagram).
 - Implement backend endpoint for Phase 6 (Quiz Generation).
 
 ## Prompt-Centric Functionality

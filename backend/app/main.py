@@ -29,6 +29,12 @@ app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
 
 
+@app.get("/")
+async def root():
+    """Root endpoint to confirm server is running."""
+    return {"message": "Welcome to NANA Backend API", "docs": "/docs"}
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""

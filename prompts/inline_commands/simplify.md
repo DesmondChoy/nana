@@ -8,11 +8,8 @@ You are transforming study notes for a learner.
 ## Selected Text
 "{selected_text}"
 
-## Surrounding Context
-{surrounding_context}
-
-## Retrieved Context
-{retrieved_chunks_text}
+## Full Page Context (Page {page_number})
+{page_text}
 
 ## Action: SIMPLIFY
 
@@ -22,17 +19,8 @@ If the learner prefers no equations (math_comfort = "No equations"), replace any
 
 ## Instructions
 1. Apply the simplification to the selected text
-2. Maintain accuracy - cite chunk IDs for any claims
+2. Maintain accuracy - all claims must be grounded in the page context
 3. Match the learner's profile preferences
-4. Return valid JSON:
-
-```json
-{
-  "transformed_text": "string",
-  "citations": [
-    {"chunk_id": "string", "page": number}
-  ]
-}
-```
+4. Return valid JSON matching the schema provided
 
 Generate the transformation:

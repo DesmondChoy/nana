@@ -5,12 +5,12 @@ Handles PDF file uploads and extracts page-wise text using Gemini 3 Flash.
 Uses inline upload (no Files API) for simplicity.
 """
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from app.config import get_settings
+from app.config import Settings, get_gemini_client, get_settings
 from app.schemas import PageContent
 
 
@@ -42,7 +42,11 @@ Extract ALL pages. Preserve paragraph structure. Include all text, headings, cap
 
 
 @router.post("/upload", response_model=ParsedPDF)
-async def upload_and_parse_pdf(file: UploadFile = File(...)) -> ParsedPDF:
+async def upload_and_parse_pdf(
+    file: UploadFile = File(...),
+    settings: Settings = Depends(get_settings),
+    client: genai.Client = Depends(get_gemini_client),
+) -> ParsedPDF:
     """
     Upload a PDF and extract page-wise content using Gemini 3 Flash.
 
@@ -52,10 +56,6 @@ async def upload_and_parse_pdf(file: UploadFile = File(...)) -> ParsedPDF:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
-    settings = get_settings()
-    if not settings.google_api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY not configured in .env")
-
     pdf_bytes = await file.read()
 
     # Check size limit (50MB)
@@ -64,8 +64,6 @@ async def upload_and_parse_pdf(file: UploadFile = File(...)) -> ParsedPDF:
             status_code=400,
             detail="PDF exceeds 50MB limit. Please upload a smaller file.",
         )
-
-    client = genai.Client(api_key=settings.google_api_key)
 
     try:
         response = client.models.generate_content(
