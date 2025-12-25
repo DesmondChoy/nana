@@ -1,9 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { usePDFStore, useUserStore } from '../stores';
 import PDFViewer from '../components/PDFViewer';
 import NotesPanel from '../components/NotesPanel';
 import GenerationProgress from '../components/GenerationProgress';
-import { generateNotes } from '../api/client';
+import { generateNotes, logCacheHits } from '../api/client';
 
 export default function StudyPage() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
@@ -17,30 +17,52 @@ export default function StudyPage() {
   const clearPDF = usePDFStore((state) => state.clearPDF);
 
   const profile = useUserStore((state) => state.profile);
-  const topicMastery = useUserStore((state) => state.topicMastery);
   const clearProfile = useUserStore((state) => state.clearProfile);
+
+  // Track if we've logged cache hits for this PDF to avoid duplicate logs
+  const cacheHitsLoggedRef = useRef<string | null>(null);
 
   // Eager sequential notes generation
   useEffect(() => {
     if (!parsedPDF || !profile) return;
 
-    let isMounted = true;
+    // AbortController to cancel in-flight requests on cleanup (prevents Strict Mode duplicates)
+    const abortController = new AbortController();
 
     const generateAllNotes = async () => {
-      // Check if already generating to avoid duplicate progress updates
-      // Note: In StrictMode, this might still trigger twice initially without the check
-      // but the isMounted flag will stop the unmounted one.
       setGenerationProgress({ isGenerating: true, completedPages: 0 });
 
+      // Log cache hits once per document (before starting generation loop)
+      if (cacheHitsLoggedRef.current !== parsedPDF.original_filename) {
+        // Access latest cache via getState() to avoid stale closure
+        const currentCache = usePDFStore.getState().notesCache;
+        const cachedPageNumbers = Object.keys(currentCache)
+          .map(Number)
+          .filter((p) => p >= 1 && p <= parsedPDF.total_pages);
+
+        if (cachedPageNumbers.length > 0) {
+          logCacheHits({
+            documentName: parsedPDF.original_filename,
+            cachedPages: cachedPageNumbers,
+            totalPages: parsedPDF.total_pages,
+          });
+        }
+        cacheHitsLoggedRef.current = parsedPDF.original_filename;
+      }
+
       for (let i = 0; i < parsedPDF.pages.length; i++) {
-        if (!isMounted) break;
+        // Check if aborted before starting each page
+        if (abortController.signal.aborted) break;
 
         const pageNum = i + 1;
+        
+        // Access latest cache via getState()
+        const currentCache = usePDFStore.getState().notesCache;
 
         // Skip if already cached
-        if (notesCache[pageNum]) {
-          if (isMounted) {
-            setGenerationProgress({ completedPages: Object.keys(notesCache).length });
+        if (currentCache[pageNum]) {
+          if (!abortController.signal.aborted) {
+            setGenerationProgress({ completedPages: Object.keys(currentCache).length });
           }
           continue;
         }
@@ -49,7 +71,7 @@ export default function StudyPage() {
         const previousPageContent = i > 0 ? parsedPDF.pages[i - 1] : undefined;
 
         // Get context from previous page's generated notes
-        const previousNotes = notesCache[pageNum - 1];
+        const previousNotes = currentCache[pageNum - 1];
         const previousNotesContext = previousNotes
           ? previousNotes.notes.sections
               .map((section) => {
@@ -62,42 +84,46 @@ export default function StudyPage() {
           : undefined;
 
         try {
-          // Double check before expensive API call
-          if (!isMounted) break;
-
           const notes = await generateNotes({
             currentPage: currentPageContent,
             previousPage: previousPageContent,
             userProfile: profile,
-            topicMastery,
+            topicMastery: useUserStore.getState().topicMastery, // Use latest mastery
             previousNotesContext,
             filename: parsedPDF.original_filename,
+            signal: abortController.signal,
           });
 
-          if (isMounted) {
+          if (!abortController.signal.aborted) {
             cacheNotes(pageNum, notes);
           }
         } catch (error) {
+          // Don't log AbortError - it's expected when cleanup cancels requests
+          if (error instanceof Error && error.name === 'AbortError') {
+            break;
+          }
           console.error(`Failed to generate notes for page ${pageNum}:`, error);
           // Continue with next page on error
         }
       }
 
-      if (isMounted) {
+      if (!abortController.signal.aborted) {
         setGenerationProgress({ isGenerating: false });
       }
     };
 
     // Only start generation if we haven't completed all pages
-    const cachedCount = Object.keys(notesCache).length;
+    const currentCache = usePDFStore.getState().notesCache;
+    const cachedCount = Object.keys(currentCache).length;
     if (cachedCount < parsedPDF.total_pages) {
       generateAllNotes();
     }
 
     return () => {
-      isMounted = false;
+      // Cancel any in-flight requests when effect cleanup runs
+      abortController.abort();
     };
-  }, [parsedPDF, profile, notesCache, topicMastery, setGenerationProgress, cacheNotes]); // Only run when PDF changes
+  }, [parsedPDF, profile, setGenerationProgress, cacheNotes]); // Only run when PDF changes
 
   const handlePageChange = useCallback(
     (page: number) => {

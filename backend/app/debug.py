@@ -77,10 +77,15 @@ class DebugLogger:
         elif isinstance(prompt, list):
             # Handle list of parts (e.g. PDF bytes + text)
             for part in prompt:
-                if hasattr(part, "text") and part.text:
+                if isinstance(part, str):
+                    # Plain string - common case for text prompts
+                    prompt_text += f"{part}\n\n"
+                elif hasattr(part, "text") and part.text:
+                    # Gemini Part object with text attribute
                     prompt_text += f"[Text Part]:\n{part.text}\n\n"
                 elif hasattr(part, "inline_data") or hasattr(part, "file_data"):
-                     prompt_text += f"[Binary/File Part]: (Data hidden)\n\n"
+                    # Binary data (PDF, image, etc.)
+                    prompt_text += f"[Binary/File Part]: (Data hidden)\n\n"
                 else:
                     prompt_text += f"[Unknown Part]: {str(part)}\n\n"
         else:
@@ -164,3 +169,62 @@ class DebugLogger:
             f.write(response_text)
             
         logger.info(f"Logged interaction to {self.debug_path}")
+
+    def log_cache_hit(
+        self,
+        document_name: str,
+        summary: str,
+    ) -> None:
+        """
+        Log a cache hit event (no LLM call was made).
+
+        Appends to existing debug files for the document, or creates new ones
+        if this is the first interaction for this document.
+
+        Args:
+            document_name: The document/PDF name (used as group_id).
+            summary: Human-readable summary of the cache hit.
+        """
+        current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        readable_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Sanitize document name for filename
+        safe_group_id = "".join(
+            c for c in document_name if c.isalnum() or c in ('-', '_', '.')
+        ).strip()
+
+        # Find existing files or create new ones
+        existing_files = sorted(
+            self.debug_path.glob(f"prompts_{safe_group_id}_*.md"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
+
+        if existing_files:
+            prompt_file = existing_files[0]
+            response_filename = prompt_file.name.replace("prompts_", "responses_", 1)
+            response_file = self.debug_path / response_filename
+            mode = "a"
+        else:
+            prompt_file = self.debug_path / f"prompts_{safe_group_id}_{current_timestamp}.md"
+            response_file = self.debug_path / f"responses_{safe_group_id}_{current_timestamp}.md"
+            mode = "w"
+
+        # Write to prompt file
+        with open(prompt_file, mode, encoding="utf-8") as f:
+            f.write(f"\n\n# Cache Hit ({current_timestamp})\n")
+            f.write(f"**Time:** {readable_time}\n")
+            f.write("\n---\n\n")
+            f.write("*No LLM prompt sent - notes served from client-side cache.*\n\n")
+            f.write(summary)
+
+        # Write to response file
+        with open(response_file, mode, encoding="utf-8") as f:
+            f.write(f"\n\n# Cache Hit ({current_timestamp})\n")
+            f.write(f"**Duration:** 0.0000 seconds (cached)\n")
+            f.write(f"**Token Usage:** None (served from cache)\n")
+            f.write("\n---\n\n")
+            f.write("*No LLM response - notes served from client-side cache.*\n\n")
+            f.write(summary)
+
+        logger.info(f"Logged cache hit to {self.debug_path}")

@@ -8,7 +8,7 @@ and sets up middleware. Run with: uvicorn app.main:app --reload
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import upload, notes
+from app.routers import upload, notes, debug
 
 
 app = FastAPI(
@@ -27,6 +27,7 @@ app.add_middleware(
 
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
+app.include_router(debug.router, prefix="/api", tags=["debug"])
 
 
 @app.get("/")
