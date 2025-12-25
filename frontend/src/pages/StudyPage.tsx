@@ -45,6 +45,7 @@ export default function StudyPage() {
             previousPage: previousPageContent,
             userProfile: profile,
             topicMastery,
+            filename: parsedPDF.original_filename,
           });
 
           cacheNotes(pageNum, notes);

@@ -33,6 +33,7 @@ export interface GenerateNotesParams {
   userProfile: UserProfile;
   topicMastery: Record<string, TopicMastery>;
   previousNotesContext?: string;
+  filename?: string;
 }
 
 export async function generateNotes(params: GenerateNotesParams): Promise<NotesResponse> {
@@ -47,6 +48,7 @@ export async function generateNotes(params: GenerateNotesParams): Promise<NotesR
       user_profile: params.userProfile,
       topic_mastery: params.topicMastery,
       previous_notes_context: params.previousNotesContext ?? null,
+      document_name: params.filename ?? null,
     }),
   });
 

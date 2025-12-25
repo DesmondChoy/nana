@@ -11,9 +11,11 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from google import genai
 from google.genai import types
+import time
 
 from app.config import Settings, get_gemini_client, get_settings
 from app.schemas import NotesRequest, NotesResponse
+from app.debug import DebugLogger
 
 router = APIRouter()
 
@@ -74,6 +76,9 @@ async def generate_notes(
     except KeyError as e:
          raise HTTPException(status_code=500, detail=f"Prompt formatting error: Missing key {e}")
 
+    debug_logger = DebugLogger()
+    start_time = time.time()
+
     try:
         # We use a lower temperature for structured generation to be consistent
         response = client.models.generate_content(
@@ -85,7 +90,26 @@ async def generate_notes(
                 temperature=0.2 
             ),
         )
+        # Log successful interaction
+        debug_logger.log_interaction(
+            name="notes_generation",
+            prompt=filled_prompt,
+            response=response,
+            start_time=start_time,
+            end_time=time.time(),
+            group_id=request.document_name
+        )
     except Exception as e:
+        # Log failed interaction
+        debug_logger.log_interaction(
+            name="notes_generation",
+            prompt=filled_prompt,
+            response=None,
+            start_time=start_time,
+            end_time=time.time(),
+            error=str(e),
+            group_id=request.document_name
+        )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
     parsed = response.parsed

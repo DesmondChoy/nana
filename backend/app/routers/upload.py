@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+import time
 
 from app.config import Settings, get_gemini_client, get_settings
 from app.schemas import PageContent
+from app.debug import DebugLogger
 
 
 router = APIRouter()
@@ -65,22 +67,41 @@ async def upload_and_parse_pdf(
             detail="PDF exceeds 50MB limit. Please upload a smaller file.",
         )
 
+    debug_logger = DebugLogger()
+    start_time = time.time()
+    prompt_contents = [
+        types.Part.from_bytes(
+            data=pdf_bytes,
+            mime_type="application/pdf",
+        ),
+        EXTRACTION_PROMPT,
+    ]
+
     try:
         response = client.models.generate_content(
             model=settings.gemini_model,
-            contents=[
-                types.Part.from_bytes(
-                    data=pdf_bytes,
-                    mime_type="application/pdf",
-                ),
-                EXTRACTION_PROMPT,
-            ],
+            contents=prompt_contents,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=PDFExtractionResponse,
             ),
         )
+        debug_logger.log_interaction(
+            name="pdf_extraction",
+            prompt=prompt_contents,
+            response=response,
+            start_time=start_time,
+            end_time=time.time()
+        )
     except Exception as e:
+        debug_logger.log_interaction(
+            name="pdf_extraction",
+            prompt=prompt_contents,
+            response=None,
+            start_time=start_time,
+            end_time=time.time(),
+            error=str(e)
+        )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
     # Parse the JSON response

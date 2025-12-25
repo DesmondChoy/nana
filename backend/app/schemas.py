@@ -35,6 +35,7 @@ class NotesRequest(BaseModel):
     user_profile: UserProfile
     topic_mastery: Dict[str, TopicMastery] = Field(default_factory=dict, description="Map of topic IDs to mastery scores")
     previous_notes_context: Optional[str] = Field(None, description="Summary or text of previous notes for continuity")
+    document_name: Optional[str] = Field(None, description="Name of the document/PDF being processed (for logging)")
 
 class BulletPoint(BaseModel):
     """A single bullet point in the notes."""

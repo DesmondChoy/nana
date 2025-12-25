@@ -2,34 +2,69 @@
 
 FastAPI backend for the NANA study assistant POC.
 
-## Setup
+## Quick Start
+
+The easiest way to run the full application (backend + frontend):
+
+```bash
+# From project root
+./dev.sh
+```
+
+This starts both services, opens your browser to `http://localhost:5173`, and logs output to `backend.log` and `frontend.log`.
+
+Press `Ctrl+C` to stop all services.
+
+## Prerequisites
+
+- Python 3.11+
+- Node.js 18+ (for frontend)
+- [uv](https://docs.astral.sh/uv/) package manager
+
+## Environment Setup
+
+Create a `.env` file in the **project root** (not in `backend/`):
+
+```bash
+# /path/to/nana/.env
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Optional: Override default model
+# GEMINI_MODEL=gemini-3-flash-preview
+```
+
+Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+## Manual Setup
 
 ```bash
 # From project root
 cd backend
 
-# Create/activate virtual environment (if not using project .venv)
-source ../.venv/bin/activate.fish
+# Activate virtual environment
+source ../.venv/bin/activate.fish  # or .venv/bin/activate for bash
 
 # Install dependencies (from project root)
 cd ..
 uv pip install -e .
-
-# Configure environment
-# Edit .env to add your GOOGLE_API_KEY
 ```
 
-## Run
+## Run Backend Only
 
 ```bash
-# Development (with auto-reload)
-uvicorn app.main:app --reload
+# From backend/ directory
+cd backend
 
-# Or from project root
-python -m uvicorn app.main:app --reload --app-dir backend
+# Option 1: Direct Python
+python -m app.main
+
+# Option 2: With auto-reload (development)
+uvicorn app.main:app --reload
 ```
 
-## Structure
+Backend runs on `http://localhost:8000`.
+
+## Project Structure
 
 ```
 backend/
@@ -37,11 +72,17 @@ backend/
 │   ├── main.py          # FastAPI entry, middleware, router registration
 │   ├── config.py        # Settings from environment variables
 │   ├── routers/         # API endpoint handlers
-│   │   └── upload.py    # PDF upload endpoints
-│   └── services/        # Business logic (parsing, retrieval, generation)
+│   │   ├── upload.py    # PDF upload and parsing
+│   │   └── notes.py     # Notes generation
+│   └── services/        # Business logic
 ```
 
 ## API Endpoints
 
-- `GET /health` - Health check
-- `POST /api/upload` - Upload PDF, returns parsed page content (text, has_images, has_tables per page)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/api/upload` | POST | Upload PDF, returns parsed page content |
+| `/api/notes` | POST | Generate notes for a page |
+
+API documentation available at `http://localhost:8000/docs` when running.

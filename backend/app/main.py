@@ -45,3 +45,8 @@ async def health_check():
 async def test_text():
     """Simple test endpoint for playwright checks."""
     return {"message": "NANA backend is running"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

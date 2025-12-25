@@ -200,6 +200,8 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - Components: `PDFViewer.tsx` (react-pdf with zoom controls), `NotesPanel.tsx`, `GenerationProgress.tsx`, `StorageWarning.tsx`.
      - Storage handling: Custom `safeStorage` with quota error handling; `partialize` excludes large data.
      - Inline command prompts updated from RAG to Direct Context architecture.
+     - Debug infrastructure: LLM interaction logging to `debug/` folder with telemetry; `document_name` tracing through API calls.
+     - Dev workflow: `dev.sh` launcher script, improved project documentation.
    - *Remaining*: Keyboard navigation, error retry for failed pages, polish.
 
 - [ ] 5. **Inline Highlight Command Actions**
@@ -240,6 +242,11 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
   - Warn user if processing will take >30s based on page count estimate.
 - **Context Length**: For extremely large PDFs (500+ pages), may need to limit context to current page + adjacent pages only. Gemini's 1M token limit provides ample headroom for typical academic PDFs.
 - **Browser Storage Limits**: warn users when hitting threshold; allow manual export to JSON for safekeeping if needed.
+
+## Developer Tooling
+- **`dev.sh`**: One-command launcher that starts backend + frontend, opens browser, and handles cleanup on Ctrl+C.
+- **Debug Logging** (`backend/app/debug.py`): Logs all LLM prompts/responses to `debug/` folder as Markdown files with telemetry (duration, token counts). Interactions are grouped by document name for easier debugging.
+- **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
 - Complete Phase 4: Add keyboard navigation (arrow keys), error retry for failed note generation.
