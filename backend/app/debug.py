@@ -52,7 +52,7 @@ class DebugLogger:
             group_id: Optional identifier to group logs (e.g., filename). 
                       If provided, appends to prompt_{group_id}.md instead of creating new files.
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         readable_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         duration = end_time - start_time
         
@@ -107,27 +107,42 @@ class DebugLogger:
                      response_text += f"## Parsed Output (Raw)\n\n{response.parsed}\n\n"
 
         # --- Determine Filenames and Modes ---
+        
         if group_id:
             # Sanitize group_id to be safe for filenames
             safe_group_id = "".join(c for c in group_id if c.isalnum() or c in ('-', '_', '.')).strip()
-            prompt_file = self.debug_path / f"prompts_{safe_group_id}.md"
-            response_file = self.debug_path / f"responses_{safe_group_id}.md"
-            mode = "a"
-            header_prefix = f"\n\n# Interaction: {name} ({timestamp})\n"
+            
+            # Search for an existing file pattern: prompts_{safe_group_id}_*.md
+            # We sort by modification time to find the most recent session if multiple exist
+            existing_files = sorted(
+                self.debug_path.glob(f"prompts_{safe_group_id}_*.md"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True
+            )
+
+            if existing_files:
+                prompt_file = existing_files[0]
+                # Derive response filename directly from prompt filename to ensure matching pairs
+                # prompts_{safe_group_id}_{timestamp}.md -> responses_{safe_group_id}_{timestamp}.md
+                response_filename = prompt_file.name.replace("prompts_", "responses_", 1)
+                response_file = self.debug_path / response_filename
+                mode = "a"
+                header_prefix = f"\n\n# Interaction: {name} ({current_timestamp})\n"
+            else:
+                prompt_file = self.debug_path / f"prompts_{safe_group_id}_{current_timestamp}.md"
+                response_file = self.debug_path / f"responses_{safe_group_id}_{current_timestamp}.md"
+                mode = "w"
+                header_prefix = f"# Interaction: {name} ({current_timestamp})\n"
         else:
-            prompt_file = self.debug_path / f"prompt_{timestamp}_{name}.md"
-            response_file = self.debug_path / f"response_{timestamp}_{name}.md"
+            prompt_file = self.debug_path / f"prompt_{current_timestamp}_{name}.md"
+            response_file = self.debug_path / f"response_{current_timestamp}_{name}.md"
             mode = "w"
             header_prefix = f"# Prompt: {name}\n"
+            header_prefix += f"**Timestamp:** {current_timestamp}\n"
 
         # --- Write Prompt File ---
         with open(prompt_file, mode, encoding="utf-8") as f:
-            if mode == "a":
-                f.write(header_prefix)
-            else:
-                f.write(header_prefix)
-                f.write(f"**Timestamp:** {timestamp}\n")
-            
+            f.write(header_prefix)
             f.write(f"**Time:** {readable_time}\n")
             f.write("\n---\n\n")
             f.write(prompt_text)
@@ -135,10 +150,9 @@ class DebugLogger:
         # --- Write Response File ---
         with open(response_file, mode, encoding="utf-8") as f:
             if mode == "a":
-                f.write(f"\n\n# Interaction: {name} ({timestamp})\n")
+                f.write(f"\n\n# Interaction: {name} ({current_timestamp})\n")
             else:
-                f.write(f"# Response: {name}\n")
-                f.write(f"**Timestamp:** {timestamp}\n")
+                f.write(f"# Response: {name} ({current_timestamp})\n")
 
             f.write(f"**Duration:** {duration:.4f} seconds\n")
             if token_usage:

@@ -48,15 +48,29 @@ export default function StudyPage() {
         const currentPageContent = parsedPDF.pages[i];
         const previousPageContent = i > 0 ? parsedPDF.pages[i - 1] : undefined;
 
+        // Get context from previous page's generated notes
+        const previousNotes = notesCache[pageNum - 1];
+        const previousNotesContext = previousNotes
+          ? previousNotes.notes.sections
+              .map((section) => {
+                const bullets = section.bullets
+                  .map((b) => `- ${b.text}`)
+                  .join('\n');
+                return `### ${section.title}\n${section.summary}\n${bullets}`;
+              })
+              .join('\n\n')
+          : undefined;
+
         try {
           // Double check before expensive API call
           if (!isMounted) break;
-          
+
           const notes = await generateNotes({
             currentPage: currentPageContent,
             previousPage: previousPageContent,
             userProfile: profile,
             topicMastery,
+            previousNotesContext,
             filename: parsedPDF.original_filename,
           });
 

@@ -86,21 +86,26 @@ async def upload_and_parse_pdf(
                 response_schema=PDFExtractionResponse,
             ),
         )
+        # Log successful interaction
+        print(f"DEBUG: Logging pdf_extraction for group_id='{file.filename}'")
         debug_logger.log_interaction(
             name="pdf_extraction",
-            prompt=prompt_contents,
+            prompt=[f"Extract text/tables/images from {file.filename}", EXTRACTION_PROMPT],
             response=response,
             start_time=start_time,
-            end_time=time.time()
+            end_time=time.time(),
+            group_id=file.filename
         )
     except Exception as e:
+        # Log failed interaction
         debug_logger.log_interaction(
             name="pdf_extraction",
-            prompt=prompt_contents,
+            prompt=f"Extract text/tables/images from {file.filename}",
             response=None,
             start_time=start_time,
             end_time=time.time(),
-            error=str(e)
+            error=str(e),
+            group_id=file.filename
         )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 

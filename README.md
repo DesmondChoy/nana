@@ -71,6 +71,47 @@ nana/
 └── materials/          # Sample PDFs for testing
 ```
 
+## System Architecture
+
+NANA uses a two-phase AI pipeline to optimize performance and cost:
+
+1.  **Phase 1 (Upload):** The entire PDF is sent to Gemini Flash once. The model extracts text, structure, and layout, returning a clean JSON representation of every page.
+2.  **Phase 2 (Study):** When generating notes, we don't re-upload the file. Instead, we send a lightweight text payload (Current Page + Previous Page Context) to generate focused study materials.
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           NANA: PDF DATA FLOW ARCHITECTURE                       │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ PHASE 1: INITIAL EXTRACTION (ONE-TIME)                                           │
+│                                                                                  │
+│   [User]          [Frontend]          [Backend]          [Gemini Flash]          │
+│     │                 │                   │                    │                 │
+│     │──(Upload PDF)──>│                   │                    │                 │
+│     │                 │──(POST /upload)──>│                    │                 │
+│     │                 │     [Binary]      │──(Entire PDF File)─>│                 │
+│     │                 │                   │   + Text Prompt     │                 │
+│     │                 │                   │                    │                 │
+│     │                 │                   │<─(JSON: All Pages)─┤                 │
+│     │                 │<───(Parsed JSON)──│                    │                 │
+│     │                 │                   │                    │                 │
+│                                                                                  │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ PHASE 2: SEQUENTIAL NOTE GENERATION (PER PAGE)                                   │
+│                                                                                  │
+│   [User]          [Frontend]          [Backend]          [Gemini Flash]          │
+│     │                 │                   │                    │                 │
+│     │──(Gen Page N)──>│                   │                    │                 │
+│     │                 │──(POST /notes)───>│                    │                 │
+│     │                 │   [TEXT ONLY]     │──(Prompt Payload)──>│                 │
+│     │                 │  - Page N Text    │  - Text Content     │                 │
+│     │                 │  - Page N-1 Text  │  - User Profile     │                 │
+│     │                 │                   │                    │                 │
+│     │                 │<──(Study Notes)───│<───(JSON Notes)────┤                 │
+│     │<──(View Notes)──│                   │                    │                 │
+│     │                 │                   │                    │                 │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
 ## Development
 
 ### Logs

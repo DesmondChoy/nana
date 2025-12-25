@@ -53,6 +53,20 @@ Your study notes that study you.
 # AI/ML/DL Components
 
 ## POC Architecture (Direct Context)
+
+### Architecture & Data Flow
+To balance cost, speed, and accuracy, NANA uses a two-phase approach for handling documents:
+
+1.  **Phase 1: One-Time Extraction**
+    *   **The "Heavy Lift":** When you upload a PDF, the **entire file** is sent to Gemini Flash once.
+    *   **The Goal:** Extract raw text, tables, and document structure. We let the multimodal model handle the parsing complexity instead of relying on brittle Python libraries like `pypdf`.
+    *   **The Result:** A clean, structured JSON representation of every page is returned and stored in the frontend state.
+
+2.  **Phase 2: Sequential Generation**
+    *   **The "Focused Study":** When generating notes, we **do not** re-upload the PDF.
+    *   **The Payload:** We only send a small text payload: the **Current Page Text** + **Previous Page Context** (for continuity).
+    *   **The Benefit:** This makes generation fast and cheap, while still maintaining enough context for high-quality, flow-aware study notes.
+
 - **Profile‑conditioned generation**: Tailor tone/level/depth using learner profile passed to each LLM call. (Reasoning Systems – LLMs; Cognitive Systems – NLG)
 - **Previous-page context**: Include N-1 page text for continuity (no N+1 lookahead to avoid notes referencing unseen content)—no chunking/embedding needed due to Gemini's 1M token context window.
 - **Structured Outputs**: Gemini's native `response_schema` enforces valid JSON, reducing parsing errors.
