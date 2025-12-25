@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useUserStore, usePDFStore } from '../stores';
 import { uploadPDF } from '../api/client';
@@ -46,18 +46,10 @@ export default function UploadPage() {
 
   const cachedPagesCount = Object.keys(notesCache).length;
 
-  const [formData, setFormData] = useState<Partial<UserProfile>>({});
-  const [additionalContext, setAdditionalContext] = useState('');
+  const [formData, setFormData] = useState<Partial<UserProfile>>(existingProfile || {});
+  const [additionalContext, setAdditionalContext] = useState(existingProfile?.additional_context || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
-
-  // Pre-fill form if profile exists
-  useEffect(() => {
-    if (existingProfile) {
-      setFormData(existingProfile);
-      setAdditionalContext(existingProfile.additional_context || '');
-    }
-  }, [existingProfile]);
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {

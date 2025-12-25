@@ -24,15 +24,24 @@ export default function StudyPage() {
   useEffect(() => {
     if (!parsedPDF || !profile) return;
 
+    let isMounted = true;
+
     const generateAllNotes = async () => {
+      // Check if already generating to avoid duplicate progress updates
+      // Note: In StrictMode, this might still trigger twice initially without the check
+      // but the isMounted flag will stop the unmounted one.
       setGenerationProgress({ isGenerating: true, completedPages: 0 });
 
       for (let i = 0; i < parsedPDF.pages.length; i++) {
+        if (!isMounted) break;
+
         const pageNum = i + 1;
 
         // Skip if already cached
         if (notesCache[pageNum]) {
-          setGenerationProgress({ completedPages: Object.keys(notesCache).length });
+          if (isMounted) {
+            setGenerationProgress({ completedPages: Object.keys(notesCache).length });
+          }
           continue;
         }
 
@@ -40,6 +49,9 @@ export default function StudyPage() {
         const previousPageContent = i > 0 ? parsedPDF.pages[i - 1] : undefined;
 
         try {
+          // Double check before expensive API call
+          if (!isMounted) break;
+          
           const notes = await generateNotes({
             currentPage: currentPageContent,
             previousPage: previousPageContent,
@@ -48,14 +60,18 @@ export default function StudyPage() {
             filename: parsedPDF.original_filename,
           });
 
-          cacheNotes(pageNum, notes);
+          if (isMounted) {
+            cacheNotes(pageNum, notes);
+          }
         } catch (error) {
           console.error(`Failed to generate notes for page ${pageNum}:`, error);
           // Continue with next page on error
         }
       }
 
-      setGenerationProgress({ isGenerating: false });
+      if (isMounted) {
+        setGenerationProgress({ isGenerating: false });
+      }
     };
 
     // Only start generation if we haven't completed all pages
@@ -63,7 +79,11 @@ export default function StudyPage() {
     if (cachedCount < parsedPDF.total_pages) {
       generateAllNotes();
     }
-  }, [parsedPDF?.original_filename]); // Only run when PDF changes
+
+    return () => {
+      isMounted = false;
+    };
+  }, [parsedPDF, profile, notesCache, topicMastery, setGenerationProgress, cacheNotes]); // Only run when PDF changes
 
   const handlePageChange = useCallback(
     (page: number) => {
