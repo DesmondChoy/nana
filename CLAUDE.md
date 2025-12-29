@@ -1,54 +1,98 @@
 # CLAUDE.md
 
-## One-Word Commands
-Quick shortcuts for common tasks:
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-- `$update`: Update memory-bank to reflect session changes. No opinionated remarks - ask for clarification when unsure.
-- `$craft`: Generate a high-quality conventional commit message for this session’s changes (do not commit; user reviews first).
-  - Behavior:
-    - Inspect staged/unstaged changes and summarize what changed and why.
-    - Always propose a single combined commit for all changes in the session.
-  - Output format (no extra prose; emit only commit message text in code fences):
-    - Single commit:
-      ```
-      <type>(<scope>): <summary>
-      
-      <body>
-      
-      - <bullet describing change>
-      - <bullet describing change>
-      
-      Affected: <file1>, <file2>, ...
-      Test Plan:
-      - <how you verified>
-      Revert plan:
-      - <how to undo safely>
-      ```
-  - Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert.
-  - Conventions:
-    - Subject ≤ 50 chars, imperative mood; wrap body at ~72 chars.
-    - Use BREAKING CHANGE: in body when applicable.
-    - Add Refs:/Closes: lines for issues/PRs when available.
-  - If context is missing, ask one concise question; otherwise proceed with best assumption and note it in the body.
-- `$review`: Use Oracle and remind it of the original objective, then review all changes made using all tools available. Check for opinionated changes, over-engineering, and opportunities for simplification or efficiency improvements. Present findings to user for decision.
-- `$parallel-x`: Run x sub-agents in parallel (not sequentially) where x is the number specified.
-- `$playwright`: Launch local app and open a browser session for visual verification.
-  - Start server (choose your OS):
-    - macOS/Linux: `nohup .venv/bin/python -m app.main > server.log 2>&1 &`
-    - Windows: `start cmd /k ".venv\\Scripts\\activate && python -m app.main"`
-  - Health check: wait until `http://localhost:8000/test-text` returns 200 (retry up to 10s), or wait ~3s if needed.
-  - Open browser: navigate to `http://localhost:8000/select` (or `/`), then use snapshot/screenshot/evaluate as needed.
-  - Viewport presets: Desktop 1280x800; Mobile 390x844.
-  - Stop server (optional):
-    - macOS/Linux: `pkill -f "python -m app.main"` (or kill PID from `lsof -i :8000`)
-    - Windows: close spawned cmd window or `taskkill /F /IM python.exe`.
+## Project Overview
 
-## Commands
-- **Virtual Environment**: ALWAYS activate `source .venv/bin/activate.fish` before running Python commands 
-- **Package Installation**: Use `uv pip install <package>` (not regular `pip install`) 
+NANA (Not Another Note App) is an AI-powered study assistant that transforms PDFs into personalized learning notes using Google's Gemini API. It uses a two-phase pipeline:
+- **Phase 1 (Upload)**: Entire PDF sent to Gemini to extract text and structure per page
+- **Phase 2 (Study)**: Lightweight text payloads sent per page for notes generation with user profile adaptation
+
+## Development Commands
+
+### Quick Start
+```bash
+./dev.sh                  # Starts backend (8000) + frontend (5173), opens browser
+```
+
+### Backend (Python/FastAPI)
+```bash
+source .venv/bin/activate         # Activate venv (use .fish for fish shell)
+uv pip install -e .               # Install dependencies (always use uv, not pip)
+cd backend && python -m app.main  # Run backend only
+pytest                            # Run tests
+pytest -v                         # Verbose tests
+ruff check .                      # Lint
+ruff format .                     # Format (100-char lines)
+```
+
+### Frontend (React/Vite)
+```bash
+cd frontend
+npm install                       # Install dependencies
+npm run dev                       # Dev server (port 5173)
+npm run build                     # Production build
+npm run lint                      # ESLint
+```
+
+### Environment Setup
+Create `.env` in project root:
+```bash
+GOOGLE_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-2.0-flash     # Optional, defaults to gemini-2.0-flash
+```
+
+## Architecture
+
+### Data Flow
+```
+User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pages
+     → StudyPage (dual-pane) → POST /api/notes (per page) → Gemini generates notes
+     → Notes cached in Zustand + localStorage
+```
+
+### Backend (`backend/app/`)
+- `main.py` - FastAPI app entry, CORS config, router registration
+- `routers/upload.py` - PDF upload, sends to Gemini for extraction
+- `routers/notes.py` - Notes generation with user profile context
+- `schemas.py` - Pydantic models (PageContent, UserProfile, NotesResponse, etc.)
+- `debug.py` - DebugLogger for LLM interaction logging to `debug/` folder
+
+### Frontend (`frontend/src/`)
+- `pages/UploadPage.tsx` - Profile setup (4 dropdowns) + drag-drop file upload
+- `pages/StudyPage.tsx` - Dual-pane layout, eager sequential notes generation
+- `stores/pdfStore.ts` - PDF blob, parsed pages, notes cache (persisted)
+- `stores/userStore.ts` - User profile, topic mastery (persisted)
+- `components/PDFViewer.tsx` - react-pdf rendering with thumbnails/zoom
+- `components/NotesPanel.tsx` - Notes display with importance color-coding
+- `api/client.ts` - API client functions with AbortSignal support
+
+### Prompts (`prompts/`)
+- `notes_generation.md` - Per-page notes template with mastery adaptation
+- `inline_commands/` - Templates for elaborate, simplify, analogy, diagram (Phase 5)
+
+## Key Design Decisions
+
+1. **No Embedding/RAG**: Gemini's 1M token context allows direct context passing
+2. **Client-Side State Only**: Stateless backend; all data in Zustand + localStorage
+3. **Eager Sequential Generation**: Notes auto-generated per-page with progress tracking
+4. **Structured Outputs**: Gemini's `response_schema` guarantees valid JSON responses
+
+## Tech Stack
+
+- **Backend**: FastAPI, Uvicorn, google-genai SDK, Pydantic
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Zustand, react-pdf, TanStack Query
+- **AI**: Google Gemini API (gemini-2.0-flash)
 
 ## Code Style
-- **Imports**: Standard library first, then third-party (streamlit, cv2, numpy, etc.)
-- **Naming**: snake_case for variables/functions, PascalCase for classes (VideoTransformer)
-- **Style**: Clean, readable code with good spacing and comments
-- **Implementation Notes**: After every code change, report in chat whether the solution feels over-engineered for the academic, time-boxed POC scope. Also comment if there are any simpler alternatives or noted gaps. Keep this as a conversational summary rather than an inline code comment.
+
+- **Python**: ruff for linting/formatting, 100-char line limit, snake_case
+- **TypeScript**: ESLint, PascalCase for components, camelCase for functions
+- **Imports**: stdlib first, then third-party, then local
+
+## Development Rules
+
+- Always use `uv pip install` (not `pip install`)
+- No autonomous commits - propose with conventional commit format, user reviews
+- All LLM interactions logged to `debug/` folder (gitignored)
+- POC project - avoid over-engineering, document simpler alternatives

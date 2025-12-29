@@ -26,10 +26,24 @@ export default function StudyPage() {
   useEffect(() => {
     if (!parsedPDF || !profile) return;
 
-    // AbortController to cancel in-flight requests on cleanup (prevents Strict Mode duplicates)
+    // Check if all pages are already cached - nothing to generate
+    const currentCache = usePDFStore.getState().notesCache;
+    const cachedCount = Object.keys(currentCache).length;
+    if (cachedCount >= parsedPDF.total_pages) {
+      return;
+    }
+
+    // AbortController to cancel in-flight requests on cleanup
     const abortController = new AbortController();
 
     const generateAllNotes = async () => {
+      // Yield to next tick before starting any API calls.
+      // This allows StrictMode's cleanup to abort BEFORE we send HTTP requests.
+      // Without this, the fetch() call is made synchronously and the request
+      // is already on the wire before abort() is called.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (abortController.signal.aborted) return;
+
       setGenerationProgress({ isGenerating: true, completedPages: 0 });
 
       // Log cache hits once per document (before starting generation loop)
@@ -112,18 +126,16 @@ export default function StudyPage() {
       }
     };
 
-    // Only start generation if we haven't completed all pages
-    const currentCache = usePDFStore.getState().notesCache;
-    const cachedCount = Object.keys(currentCache).length;
-    if (cachedCount < parsedPDF.total_pages) {
-      generateAllNotes();
-    }
+    // Start generation (cache check was already done at the top of this effect)
+    generateAllNotes();
 
     return () => {
-      // Cancel any in-flight requests when effect cleanup runs
+      // Cancel any in-flight requests when effect cleanup runs.
+      // Combined with the setTimeout(0) at the start of generateAllNotes(),
+      // this ensures StrictMode's first effect is aborted BEFORE making API calls.
       abortController.abort();
     };
-  }, [parsedPDF, profile, setGenerationProgress, cacheNotes]); // Only run when PDF changes
+  }, [parsedPDF, profile, setGenerationProgress, cacheNotes]);
 
   const handlePageChange = useCallback(
     (page: number) => {

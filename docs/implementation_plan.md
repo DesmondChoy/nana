@@ -202,6 +202,11 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - Inline command prompts updated from RAG to Direct Context architecture.
      - Debug infrastructure: LLM interaction logging to `debug/` folder with telemetry; `document_name` tracing through API calls.
      - Dev workflow: `dev.sh` launcher script, improved project documentation.
+   - ✅ *Bug Fix (2024-12-29)*: **React StrictMode duplicate API calls**
+     - **Issue**: Debug logs revealed Page 1 notes generation was being called twice (~4 seconds apart), wasting API tokens.
+     - **Root Cause**: React 18 StrictMode runs effects twice (mount → unmount → mount). The `AbortController` cleanup aborted in-flight requests, but the HTTP request was already sent before abort was processed.
+     - **Solution**: Added `setTimeout(0)` yield at the start of `generateAllNotes()` to defer API calls to the macrotask queue. This allows StrictMode's cleanup to abort BEFORE any HTTP requests are sent. See `StudyPage.tsx:44-49`.
+     - **Verification**: Debug logs now show exactly 1 `notes_generation` call per page (10 calls for 10-page PDF, down from 11).
    - *Remaining*: Keyboard navigation, error retry for failed pages, polish.
 
 - [ ] 5. **Inline Highlight Command Actions**
@@ -246,6 +251,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 ## Developer Tooling
 - **`dev.sh`**: One-command launcher that starts backend + frontend, opens browser, and handles cleanup on Ctrl+C.
 - **Debug Logging** (`backend/app/debug.py`): Logs all LLM prompts/responses to `debug/` folder as Markdown files with telemetry (duration, token counts). Interactions are grouped by document name for easier debugging.
+  - *Example diagnosis*: Debug logs revealed duplicate Page 1 API calls (StrictMode bug), identified by seeing two `notes_generation` entries for Page 1 in the prompts file with timestamps ~4 seconds apart.
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps

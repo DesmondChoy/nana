@@ -4,7 +4,7 @@
 Quick shortcuts for common tasks:
 
 - `$update`: Update memory-bank to reflect session changes. No opinionated remarks - ask for clarification when unsure.
-- `$craft`: Generate high-quality conventional commit messages for this session’s changes (do not commit; user reviews first).
+- `$craft`: Generate one high-quality conventional commit message for this session’s changes (do not commit; user reviews first).
   - Behavior:
     - Inspect staged/unstaged changes and summarize what changed and why.
     - Propose a single commit or multiple commits if the work is logically separable.
