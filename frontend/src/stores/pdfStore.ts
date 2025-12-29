@@ -43,6 +43,9 @@ interface PDFState {
   notesCache: Record<number, PageNotes>;
   cachedFilename: string | null; // Track which file the cache belongs to (persisted)
 
+  // Failed pages (generation attempted but failed)
+  failedPages: Set<number>;
+
   // Generation progress
   generationProgress: {
     isGenerating: boolean;
@@ -63,6 +66,8 @@ interface PDFState {
   setGenerationProgress: (progress: Partial<PDFState['generationProgress']>) => void;
   clearNotesCache: () => void;
   setStorageWarning: (warning: boolean) => void;
+  markPageFailed: (pageNumber: number) => void;
+  clearPageFailure: (pageNumber: number) => void;
 }
 
 export const usePDFStore = create<PDFState>()(
@@ -73,6 +78,7 @@ export const usePDFStore = create<PDFState>()(
       currentPage: 1,
       notesCache: {},
       cachedFilename: null,
+      failedPages: new Set<number>(),
       generationProgress: {
         isGenerating: false,
         completedPages: 0,
@@ -93,6 +99,7 @@ export const usePDFStore = create<PDFState>()(
           currentPage: preservedPage,
           notesCache: preservedCache,
           cachedFilename: pdf.original_filename,
+          failedPages: isSameFile ? state.failedPages : new Set<number>(),
           generationProgress: {
             isGenerating: false,
             completedPages: Object.keys(preservedCache).length,
@@ -115,6 +122,7 @@ export const usePDFStore = create<PDFState>()(
           currentPage: 1,
           notesCache: {},
           cachedFilename: null,
+          failedPages: new Set<number>(),
           generationProgress: {
             isGenerating: false,
             completedPages: 0,
@@ -127,20 +135,26 @@ export const usePDFStore = create<PDFState>()(
       setCurrentPage: (page) => set({ currentPage: page }),
 
       cacheNotes: (pageNumber, notes) =>
-        set((state) => ({
-          notesCache: {
-            ...state.notesCache,
-            [pageNumber]: {
-              page_number: pageNumber,
-              notes,
-              generated_at: new Date().toISOString(),
+        set((state) => {
+          // Clear any failure status for this page on successful cache
+          const newFailedPages = new Set(state.failedPages);
+          newFailedPages.delete(pageNumber);
+          return {
+            notesCache: {
+              ...state.notesCache,
+              [pageNumber]: {
+                page_number: pageNumber,
+                notes,
+                generated_at: new Date().toISOString(),
+              },
             },
-          },
-          generationProgress: {
-            ...state.generationProgress,
-            completedPages: Object.keys(state.notesCache).length + 1,
-          },
-        })),
+            failedPages: newFailedPages,
+            generationProgress: {
+              ...state.generationProgress,
+              completedPages: Object.keys(state.notesCache).length + 1,
+            },
+          };
+        }),
 
       getNotesForPage: (pageNumber) => get().notesCache[pageNumber] ?? null,
 
@@ -149,9 +163,23 @@ export const usePDFStore = create<PDFState>()(
           generationProgress: { ...state.generationProgress, ...progress },
         })),
 
-      clearNotesCache: () => set({ notesCache: {}, cachedFilename: null }),
+      clearNotesCache: () => set({ notesCache: {}, cachedFilename: null, failedPages: new Set<number>() }),
 
       setStorageWarning: (warning) => set({ storageWarning: warning }),
+
+      markPageFailed: (pageNumber) =>
+        set((state) => {
+          const newFailedPages = new Set(state.failedPages);
+          newFailedPages.add(pageNumber);
+          return { failedPages: newFailedPages };
+        }),
+
+      clearPageFailure: (pageNumber) =>
+        set((state) => {
+          const newFailedPages = new Set(state.failedPages);
+          newFailedPages.delete(pageNumber);
+          return { failedPages: newFailedPages };
+        }),
     }),
     {
       name: 'nana-pdf-storage',

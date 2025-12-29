@@ -1,8 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 4 in progress. Frontend dual-pane experience scaffolded with PDF rendering and notes display.
+> **Current Status**: Phase 4 complete. Full dual-pane study experience with keyboard navigation and error retry.
 >
-> **Next Up**: Phase 4 completion (keyboard nav, error retry) or Phase 5 (Inline Commands).
+> **Next Up**: Phase 5 (Inline Commands) or Phase 6 (Quiz Generation).
 
 ## Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -183,7 +183,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
    - *Reasoning*: direct context passing (no chunking/retrieval) leverages Gemini's large context window. **Using Gemini's native Structured Outputs guarantees valid JSON, reducing parsing errors and code complexity.**
    - ✅ *Done*: Implemented `schemas.py`, `routers/notes.py`, updated `prompts/notes_generation.md` and registered router in `main.py`. Added tests in `backend/tests/`.
 
-- [~] 4. **Frontend Dual-Pane Experience**
+- [x] 4. **Frontend Dual-Pane Experience**
    - *Libraries*: `react-pdf` for PDF viewing (React-native wrapper over PDF.js), `@tanstack/react-query` for data fetching/caching, `zustand` with `persist` middleware for state + localStorage, `Tailwind` for layout.
    - *Steps*:
      1. ✅ Implement upload screen with user profile dropdowns.
@@ -191,13 +191,15 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      3. ✅ Show generation progress ("12/42 pages") with early access to completed pages.
      4. ✅ Build dual-pane layout: PDF viewer (left) synced with notes display (right).
      5. ✅ Cache all generated notes in Zustand store; page navigation displays cached notes instantly.
+     6. ✅ Add keyboard navigation (arrow keys) for page navigation.
+     7. ✅ Implement error retry UI for failed note generation.
    - *Reasoning*: Eager generation ensures notes are ready before the lecture. Sequential per-page calls with adjacent context provide continuity while avoiding output token limits. `react-pdf` reduces PDF.js boilerplate. Zustand's persist middleware consolidates state + storage in one pattern.
-   - ✅ *Progress*:
+   - ✅ *Done*:
      - Frontend scaffolded: `frontend/` with Vite + React + TypeScript + Tailwind.
-     - Zustand stores: `userStore.ts` (profile, mastery), `pdfStore.ts` (PDF, notes cache).
+     - Zustand stores: `userStore.ts` (profile, mastery), `pdfStore.ts` (PDF, notes cache, failed pages tracking).
      - API client: `api/client.ts` with `uploadPDF()` and `generateNotes()`.
      - Pages: `UploadPage.tsx` (profile dropdowns, drag-drop upload), `StudyPage.tsx` (dual-pane layout).
-     - Components: `PDFViewer.tsx` (react-pdf with zoom controls), `NotesPanel.tsx`, `GenerationProgress.tsx`, `StorageWarning.tsx`.
+     - Components: `PDFViewer.tsx` (react-pdf with zoom controls), `NotesPanel.tsx` (with retry UI), `GenerationProgress.tsx`, `StorageWarning.tsx`.
      - Storage handling: Custom `safeStorage` with quota error handling; `partialize` excludes large data.
      - Inline command prompts updated from RAG to Direct Context architecture.
      - Debug infrastructure: LLM interaction logging to `debug/` folder with telemetry; `document_name` tracing through API calls.
@@ -207,7 +209,9 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - **Root Cause**: React 18 StrictMode runs effects twice (mount → unmount → mount). The `AbortController` cleanup aborted in-flight requests, but the HTTP request was already sent before abort was processed.
      - **Solution**: Added `setTimeout(0)` yield at the start of `generateAllNotes()` to defer API calls to the macrotask queue. This allows StrictMode's cleanup to abort BEFORE any HTTP requests are sent. See `StudyPage.tsx:44-49`.
      - **Verification**: Debug logs now show exactly 1 `notes_generation` call per page (10 calls for 10-page PDF, down from 11).
-   - *Remaining*: Keyboard navigation, error retry for failed pages, polish.
+   - ✅ *Feature (2024-12-29)*: **Keyboard Navigation & Error Retry**
+     - **Keyboard nav**: Arrow Left/Up for previous page, Arrow Right/Down for next page. Ignores keypresses in input fields. See `StudyPage.tsx:198-219`.
+     - **Error retry**: Added `failedPages: Set<number>` to pdfStore to track failed generations. NotesPanel shows error state with retry button. `handleRetryPage()` regenerates single page with same context assembly. See `pdfStore.ts:170-182`, `NotesPanel.tsx:44-79`.
 
 - [ ] 5. **Inline Highlight Command Actions**
    - *Libraries*: `selection-api` utilities, small headless UI component (e.g., `@headlessui/react`) for context menus/modals.
@@ -255,9 +259,9 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
-- Complete Phase 4: Add keyboard navigation (arrow keys), error retry for failed note generation.
 - Begin Phase 5: Inline highlight command actions (elaborate, simplify, analogy, diagram).
 - Implement backend endpoint for Phase 6 (Quiz Generation).
+- Phase 7: Consolidated Markdown export.
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.

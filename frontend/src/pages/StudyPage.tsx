@@ -18,6 +18,9 @@ export default function StudyPage() {
 
   const profile = useUserStore((state) => state.profile);
   const clearProfile = useUserStore((state) => state.clearProfile);
+  const failedPages = usePDFStore((state) => state.failedPages);
+  const markPageFailed = usePDFStore((state) => state.markPageFailed);
+  const clearPageFailure = usePDFStore((state) => state.clearPageFailure);
 
   // Track if we've logged cache hits for this PDF to avoid duplicate logs
   const cacheHitsLoggedRef = useRef<string | null>(null);
@@ -117,6 +120,10 @@ export default function StudyPage() {
             break;
           }
           console.error(`Failed to generate notes for page ${pageNum}:`, error);
+          // Mark page as failed so user can retry
+          if (!abortController.signal.aborted) {
+            markPageFailed(pageNum);
+          }
           // Continue with next page on error
         }
       }
@@ -135,7 +142,7 @@ export default function StudyPage() {
       // this ensures StrictMode's first effect is aborted BEFORE making API calls.
       abortController.abort();
     };
-  }, [parsedPDF, profile, setGenerationProgress, cacheNotes]);
+  }, [parsedPDF, profile, setGenerationProgress, cacheNotes, markPageFailed]);
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -145,6 +152,72 @@ export default function StudyPage() {
     },
     [parsedPDF, setCurrentPage]
   );
+
+  // Retry failed page generation
+  const handleRetryPage = useCallback(
+    async (pageNum: number) => {
+      if (!parsedPDF || !profile) return;
+
+      // Clear failure status and show generating state
+      clearPageFailure(pageNum);
+
+      const pageIndex = pageNum - 1;
+      const currentPageContent = parsedPDF.pages[pageIndex];
+      const previousPageContent = pageIndex > 0 ? parsedPDF.pages[pageIndex - 1] : undefined;
+
+      // Get context from previous page's generated notes
+      const currentCache = usePDFStore.getState().notesCache;
+      const previousNotes = currentCache[pageNum - 1];
+      const previousNotesContext = previousNotes
+        ? previousNotes.notes.sections
+            .map((section) => {
+              const bullets = section.bullets.map((b) => `- ${b.text}`).join('\n');
+              return `### ${section.title}\n${section.summary}\n${bullets}`;
+            })
+            .join('\n\n')
+        : undefined;
+
+      try {
+        const notes = await generateNotes({
+          currentPage: currentPageContent,
+          previousPage: previousPageContent,
+          userProfile: profile,
+          topicMastery: useUserStore.getState().topicMastery,
+          previousNotesContext,
+          filename: parsedPDF.original_filename,
+        });
+        cacheNotes(pageNum, notes);
+      } catch (error) {
+        console.error(`Retry failed for page ${pageNum}:`, error);
+        markPageFailed(pageNum);
+      }
+    },
+    [parsedPDF, profile, cacheNotes, clearPageFailure, markPageFailed]
+  );
+
+  // Keyboard navigation (arrow keys)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        handlePageChange(currentPage - 1);
+      } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        handlePageChange(currentPage + 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, handlePageChange]);
 
   const handleReset = useCallback(() => {
     clearPDF();
@@ -201,6 +274,8 @@ export default function StudyPage() {
             pageNumber={currentPage}
             notes={currentNotes?.notes ?? null}
             isGenerating={generationProgress.isGenerating && !currentNotes}
+            hasFailed={failedPages.has(currentPage)}
+            onRetry={() => handleRetryPage(currentPage)}
           />
         </div>
       </main>
@@ -211,8 +286,9 @@ export default function StudyPage() {
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage <= 1}
           className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          title="Previous page (← or ↑)"
         >
-          Previous
+          ← Previous
         </button>
 
         <span className="text-sm text-gray-600">
@@ -223,8 +299,9 @@ export default function StudyPage() {
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage >= parsedPDF.total_pages}
           className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          title="Next page (→ or ↓)"
         >
-          Next
+          Next →
         </button>
       </footer>
     </div>
