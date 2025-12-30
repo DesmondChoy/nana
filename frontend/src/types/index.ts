@@ -47,6 +47,7 @@ export interface ParsedPDF {
   original_filename: string;
   total_pages: number;
   pages: PageContent[];
+  session_id: string; // Unique ID for this upload session (for debug log grouping)
 }
 
 // Notes types - mirrors backend NotesResponse

@@ -97,7 +97,7 @@ async def generate_notes(
             response=response,
             start_time=start_time,
             end_time=time.time(),
-            group_id=request.document_name
+            session_id=request.session_id
         )
     except Exception as e:
         # Log failed interaction
@@ -108,7 +108,7 @@ async def generate_notes(
             start_time=start_time,
             end_time=time.time(),
             error=str(e),
-            group_id=request.document_name
+            session_id=request.session_id
         )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 

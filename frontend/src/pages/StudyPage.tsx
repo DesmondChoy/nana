@@ -108,6 +108,7 @@ export default function StudyPage() {
             topicMastery: useUserStore.getState().topicMastery, // Use latest mastery
             previousNotesContext,
             filename: parsedPDF.original_filename,
+            sessionId: parsedPDF.session_id,
             signal: abortController.signal,
           });
 
@@ -185,6 +186,7 @@ export default function StudyPage() {
           topicMastery: useUserStore.getState().topicMastery,
           previousNotesContext,
           filename: parsedPDF.original_filename,
+          sessionId: parsedPDF.session_id,
         });
         cacheNotes(pageNum, notes);
       } catch (error) {

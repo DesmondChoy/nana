@@ -5,6 +5,8 @@ Handles PDF file uploads and extracts page-wise text using Gemini 3 Flash.
 Uses inline upload (no Files API) for simplicity.
 """
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from google import genai
 from google.genai import types
@@ -30,6 +32,7 @@ class ParsedPDF(BaseModel):
     original_filename: str
     total_pages: int
     pages: list[PageContent]
+    session_id: str  # Unique ID for this upload session (used for debug log grouping)
 
 
 EXTRACTION_PROMPT = """Analyze this PDF document and extract the content from each page.
@@ -67,6 +70,9 @@ async def upload_and_parse_pdf(
             detail="PDF exceeds 50MB limit. Please upload a smaller file.",
         )
 
+    # Generate a unique session ID for this upload (used to group all related logs)
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     debug_logger = DebugLogger()
     start_time = time.time()
     prompt_contents = [
@@ -87,14 +93,13 @@ async def upload_and_parse_pdf(
             ),
         )
         # Log successful interaction
-        print(f"DEBUG: Logging pdf_extraction for group_id='{file.filename}'")
         debug_logger.log_interaction(
             name="pdf_extraction",
             prompt=[f"Extract text/tables/images from {file.filename}", EXTRACTION_PROMPT],
             response=response,
             start_time=start_time,
             end_time=time.time(),
-            group_id=file.filename
+            session_id=session_id
         )
     except Exception as e:
         # Log failed interaction
@@ -105,7 +110,7 @@ async def upload_and_parse_pdf(
             start_time=start_time,
             end_time=time.time(),
             error=str(e),
-            group_id=file.filename
+            session_id=session_id
         )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
@@ -123,4 +128,5 @@ async def upload_and_parse_pdf(
         original_filename=file.filename,
         total_pages=len(pages),
         pages=pages,
+        session_id=session_id,
     )

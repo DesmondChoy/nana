@@ -34,6 +34,7 @@ export interface GenerateNotesParams {
   topicMastery: Record<string, TopicMastery>;
   previousNotesContext?: string;
   filename?: string;
+  sessionId?: string; // Session ID for debug log grouping
   signal?: AbortSignal; // For cancelling in-flight requests
 }
 
@@ -50,6 +51,7 @@ export async function generateNotes(params: GenerateNotesParams): Promise<NotesR
       topic_mastery: params.topicMastery,
       previous_notes_context: params.previousNotesContext ?? null,
       document_name: params.filename ?? null,
+      session_id: params.sessionId ?? null,
     }),
     signal: params.signal,
   });
