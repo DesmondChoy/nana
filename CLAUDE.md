@@ -96,3 +96,30 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 - No autonomous commits - propose with conventional commit format, user reviews
 - All LLM interactions logged to `debug/` folder (gitignored)
 - POC project - avoid over-engineering, document simpler alternatives
+
+## Quick Commands
+
+### `$craft`
+Generate a conventional commit message for the session's changes (do not commit; user reviews first).
+
+**Behavior**: Inspect staged/unstaged changes, summarize what changed and why, propose single or multiple commits if logically separable.
+
+**Output format** (no extra prose; emit only commit message in code fences):
+```
+<type>(<scope>): <summary>
+
+<body>
+
+- <bullet describing change>
+- <bullet describing change>
+
+Affected: <file1>, <file2>, ...
+Test Plan:
+- <how you verified>
+Revert plan:
+- <how to undo safely>
+```
+
+**Allowed types**: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+
+**Conventions**: Subject ≤ 50 chars, imperative mood; wrap body at ~72 chars. Use `BREAKING CHANGE:` in body when applicable.

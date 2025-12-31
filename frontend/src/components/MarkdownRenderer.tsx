@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import type { ReactNode, ComponentPropsWithoutRef } from 'react';
 
 // Obsidian callout type styling
@@ -127,61 +129,36 @@ function parseCalloutFromChildren(children: ReactNode): {
   for (let i = 0; i < childArray.length; i++) {
     const child = childArray[i];
     if (child && typeof child === 'object' && 'props' in child) {
+      // Only extract text for pattern matching - NOT for rendering
       const textContent = extractTextContent(child);
-      // Match [!type] and capture title (words before the main content)
-      // Title is typically capitalized words at the start
+      // Match [!type] and capture title
       const calloutMatch = textContent.match(/^\[!(\w+)\]\s*(.*)/s);
 
       if (calloutMatch) {
         const [, type, restOfContent] = calloutMatch;
 
-        // Extract title: Look for common title patterns
-        // Titles typically end before the first lowercase word that starts a sentence,
-        // or before common sentence starters like "This", "The", "In", etc.
-        // Strategy: Take text up to first period, or first newline, or max ~60 chars
-        let title = '';
-        let contentStart = 0;
-
-        // First, check if there's a newline - title is everything before it
+        // Extract title from the text - just the first line before newline
+        // Title detection is text-based, but content will preserve React elements
         const newlineIdx = restOfContent.indexOf('\n');
+        let title = '';
+
         if (newlineIdx > 0 && newlineIdx < 80) {
           title = restOfContent.substring(0, newlineIdx).trim();
-          contentStart = newlineIdx + 1;
+        } else if (restOfContent.length < 80 && !restOfContent.includes('.')) {
+          // Short text without period - likely just a title
+          title = restOfContent.trim();
         } else {
-          // No newline - look for sentence boundary or common content starters
-          // Match title: capitalized phrase until we hit a sentence (This/The/In/A + lowercase or period)
-          const sentenceStartMatch = restOfContent.match(
-            /^(.+?)\s+(?:This|The|In|A|An|For|When|If|Unlike|Because|Instead)\s+[a-z]/
-          );
-          if (sentenceStartMatch && sentenceStartMatch[1].length < 80) {
-            title = sentenceStartMatch[1].trim();
-            contentStart = sentenceStartMatch[1].length;
-          } else {
-            // Fallback: take first sentence or first 60 chars
-            const periodIdx = restOfContent.indexOf('.');
-            if (periodIdx > 0 && periodIdx < 60) {
-              title = restOfContent.substring(0, periodIdx).trim();
-              contentStart = periodIdx + 1;
-            } else {
-              // Just use the type as title, all content goes to body
-              title = type.charAt(0).toUpperCase() + type.slice(1);
-              contentStart = 0;
-            }
-          }
+          // Fallback: use type as title
+          title = type.charAt(0).toUpperCase() + type.slice(1);
         }
 
-        // Build content from remaining text
-        const remainingText = restOfContent.substring(contentStart).trim();
+        // IMPORTANT: Use original React children for content to preserve KaTeX rendering
+        // Skip the first child (which contains [!type]) and use remaining children
         const otherChildren = childArray.slice(i + 1);
 
-        let content: ReactNode;
-        if (remainingText) {
-          content = [remainingText, ...otherChildren];
-        } else {
-          content = otherChildren;
-        }
-
-        return { type, title, content };
+        // The content is all children after the first one (which has the [!type] marker)
+        // This preserves all React elements including KaTeX-rendered math
+        return { type, title, content: otherChildren };
       }
     }
   }
@@ -219,6 +196,14 @@ function preprocessMarkdown(markdown: string): string {
   // Convert "> [!type] Title\n> Content" format properly
   processed = processed.replace(/\n>\s*/g, '\n> ');
 
+  // Fix 3: Add blank line after callout title to separate title from content
+  // This ensures the content becomes a separate paragraph in the React tree
+  // Pattern: > [!type] Title\n> Content -> > [!type] Title\n>\n> Content
+  processed = processed.replace(
+    /^(>\s*\[!\w+\][^\n]*)\n(>\s*[^\n])/gm,
+    '$1\n>\n$2'
+  );
+
   return processed;
 }
 
@@ -237,7 +222,8 @@ export default function MarkdownRenderer({
   return (
     <div className={`prose prose-sm max-w-none ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
           // Custom blockquote renderer for callouts
           blockquote: ({ children, ...props }: ComponentPropsWithoutRef<'blockquote'>) => {
