@@ -3,7 +3,7 @@ Notes Generation Router.
 
 Generates study notes for a specific PDF page using Gemini 3 Flash.
 Uses 'Direct Context' (current page + previous page for continuity) instead of RAG.
-Enforces structured JSON output via Pydantic schemas.
+Returns rich markdown content with Obsidian-style callouts plus metadata for topic tracking.
 """
 
 from pathlib import Path

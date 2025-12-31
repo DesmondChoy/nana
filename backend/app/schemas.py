@@ -38,20 +38,12 @@ class NotesRequest(BaseModel):
     document_name: Optional[str] = Field(None, description="Name of the document/PDF being processed (for logging)")
     session_id: Optional[str] = Field(None, description="Session ID from upload (for grouping debug logs)")
 
-class BulletPoint(BaseModel):
-    """A single bullet point in the notes."""
-    text: str
-    importance: str = Field(..., description="key|supporting|detail")
-
-class NoteSection(BaseModel):
-    """A section of the generated notes."""
-    title: str
-    summary: str
-    bullets: List[BulletPoint]
-    topic_labels: List[str]
-    # Simple page reference as list of page numbers relevant to this section
-    page_references: List[int]
-
 class NotesResponse(BaseModel):
-    """The structured response from the notes generation API."""
-    sections: List[NoteSection]
+    """Markdown notes with metadata for tracking.
+
+    The LLM returns rich markdown content with Obsidian-style callouts,
+    plus structured metadata for topic mastery tracking.
+    """
+    markdown: str = Field(..., description="Full markdown content of the notes with Obsidian-style callouts")
+    topic_labels: List[str] = Field(default_factory=list, description="Topics covered for mastery tracking (lowercase, hyphenated)")
+    page_references: List[int] = Field(default_factory=list, description="Page numbers referenced in these notes")

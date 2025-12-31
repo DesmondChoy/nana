@@ -50,22 +50,11 @@ export interface ParsedPDF {
   session_id: string; // Unique ID for this upload session (for debug log grouping)
 }
 
-// Notes types - mirrors backend NotesResponse
-export interface BulletPoint {
-  text: string;
-  importance: 'key' | 'supporting' | 'detail';
-}
-
-export interface NoteSection {
-  title: string;
-  summary: string;
-  bullets: BulletPoint[];
+// Notes types - mirrors backend NotesResponse (markdown format)
+export interface NotesResponse {
+  markdown: string;
   topic_labels: string[];
   page_references: number[];
-}
-
-export interface NotesResponse {
-  sections: NoteSection[];
 }
 
 // Page notes cache entry

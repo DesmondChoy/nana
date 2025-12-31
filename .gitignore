@@ -216,3 +216,4 @@ CLAUDE.md
 # folders
 debug/
 materials/
+.playwright-mcp/

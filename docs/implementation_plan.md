@@ -1,6 +1,6 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 4 complete. Full dual-pane study experience with keyboard navigation and error retry.
+> **Current Status**: Phase 4.5 complete. Full markdown notes with Obsidian-style callouts.
 >
 > **Next Up**: Phase 5 (Inline Commands) or Phase 6 (Quiz Generation).
 
@@ -202,7 +202,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - Components: `PDFViewer.tsx` (react-pdf with zoom controls), `NotesPanel.tsx` (with retry UI), `GenerationProgress.tsx`, `StorageWarning.tsx`.
      - Storage handling: Custom `safeStorage` with quota error handling; `partialize` excludes large data.
      - Inline command prompts updated from RAG to Direct Context architecture.
-     - Debug infrastructure: LLM interaction logging to `debug/` folder with telemetry; `document_name` tracing through API calls.
+     - Debug infrastructure: LLM interaction logging to `debug/` folder with telemetry; `session_id` tracing through API calls for per-upload log grouping.
      - Dev workflow: `dev.sh` launcher script, improved project documentation.
    - ✅ *Bug Fix (2024-12-29)*: **React StrictMode duplicate API calls**
      - **Issue**: Debug logs revealed Page 1 notes generation was being called twice (~4 seconds apart), wasting API tokens.
@@ -212,6 +212,29 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
    - ✅ *Feature (2024-12-29)*: **Keyboard Navigation & Error Retry**
      - **Keyboard nav**: Arrow Left/Up for previous page, Arrow Right/Down for next page. Ignores keypresses in input fields. See `StudyPage.tsx:198-219`.
      - **Error retry**: Added `failedPages: Set<number>` to pdfStore to track failed generations. NotesPanel shows error state with retry button. `handleRetryPage()` regenerates single page with same context assembly. See `pdfStore.ts:170-182`, `NotesPanel.tsx:44-79`.
+
+- [x] 4.5. **Full Markdown Notes with Obsidian Callouts**
+   - *Libraries*: `react-markdown` for markdown rendering, `remark-gfm` for GitHub Flavored Markdown (tables, strikethrough).
+   - *Steps*:
+     1. ✅ Update backend `NotesResponse` schema from structured sections to markdown-based output.
+     2. ✅ Rewrite `prompts/notes_generation.md` to instruct LLM to output rich markdown with Obsidian-style callouts.
+     3. ✅ Create `MarkdownRenderer.tsx` component with custom blockquote handling for callout detection.
+     4. ✅ Implement callout styling for 12 types (abstract, note, info, tip, example, question, quote, warning, danger, bug, success, failure).
+     5. ✅ Add markdown preprocessing to handle escaped newlines (`\n` → actual newlines) from Gemini JSON output.
+     6. ✅ Update `NotesPanel.tsx` to use markdown renderer instead of structured section display.
+     7. ✅ Add cache format migration to clear old sections-based cache on rehydration.
+   - *Reasoning*: Structured JSON output was limiting LLM expressiveness. Full markdown allows rich formatting (callouts, tables, code blocks, nested lists) that better matches academic note-taking patterns. Obsidian callout syntax (`> [!type]`) is a well-known convention that maps cleanly to styled UI blocks.
+   - ✅ *Done*:
+     - **Backend**: Simplified `NotesResponse` schema to `{markdown: str, topic_labels: [], page_references: []}`. Kept structured metadata for mastery tracking.
+     - **Frontend**: New `MarkdownRenderer.tsx` with `parseCalloutFromChildren()` for detecting `[!type]` patterns in blockquotes.
+     - **Callout Styles**: 12 callout types with distinct colors/icons (📋 abstract=purple, 💡 tip=green, ⚠️ warning=orange, etc.).
+     - **Preprocessing**: `preprocessMarkdown()` fixes escaped newlines and callout line continuation from Gemini output.
+     - **Cache Migration**: `isOldNotesFormat()` check in `pdfStore.ts` clears sections-based cache automatically.
+   - ✅ *Bug Fix (2024-12-31)*: **Escaped newlines not rendering**
+     - **Issue**: Page 3 showed literal `\n\n>` and `[!abstract]` markers instead of formatted callouts.
+     - **Root Cause**: Gemini returns JSON with escaped newlines (backslash + n, char codes 92+110) that persist after JSON parsing.
+     - **Solution**: Added `preprocessMarkdown()` with regex `/\\n/g` to convert escaped sequences to actual newlines. Fixed critical bug where `processedContent` was declared but original `content` was still passed to ReactMarkdown.
+     - **Verification**: Tested all 21 pages of S-PRMLS Day1a.pdf—all render correctly with callouts, tables, math, and nested lists.
 
 - [ ] 5. **Inline Highlight Command Actions**
    - *Libraries*: `selection-api` utilities, small headless UI component (e.g., `@headlessui/react`) for context menus/modals.
@@ -254,14 +277,24 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 
 ## Developer Tooling
 - **`dev.sh`**: One-command launcher that starts backend + frontend, opens browser, and handles cleanup on Ctrl+C.
-- **Debug Logging** (`backend/app/debug.py`): Logs all LLM prompts/responses to `debug/` folder as Markdown files with telemetry (duration, token counts). Interactions are grouped by document name for easier debugging.
+- **Debug Logging** (`backend/app/debug.py`): Logs all LLM prompts/responses to `debug/` folder as Markdown files with telemetry (duration, token counts).
+  - *Session-based grouping*: Each upload generates a unique `session_id` (timestamp). All interactions for that session (1 upload + N page notes) are appended to a single file pair: `prompts_{session_id}.md` and `responses_{session_id}.md`. Re-uploading the same PDF creates new files, making it easy to compare prompt iterations.
   - *Example diagnosis*: Debug logs revealed duplicate Page 1 API calls (StrictMode bug), identified by seeing two `notes_generation` entries for Page 1 in the prompts file with timestamps ~4 seconds apart.
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
 - Begin Phase 5: Inline highlight command actions (elaborate, simplify, analogy, diagram).
 - Implement backend endpoint for Phase 6 (Quiz Generation).
-- Phase 7: Consolidated Markdown export.
+- Phase 7: Consolidated Markdown export (now simpler since notes are already markdown).
+
+## Completed Features Summary
+| Phase | Feature | Key Files |
+|-------|---------|-----------|
+| 1 | Environment Setup | `backend/app/`, `frontend/`, `pyproject.toml` |
+| 2 | PDF Upload & Parsing | `routers/upload.py`, `schemas.py` |
+| 3 | Notes Generation API | `routers/notes.py`, `prompts/notes_generation.md` |
+| 4 | Dual-Pane Experience | `StudyPage.tsx`, `PDFViewer.tsx`, `NotesPanel.tsx` |
+| 4.5 | Markdown + Callouts | `MarkdownRenderer.tsx`, `NotesResponse` schema |
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.

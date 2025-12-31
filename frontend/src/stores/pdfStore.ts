@@ -70,6 +70,17 @@ interface PDFState {
   clearPageFailure: (pageNumber: number) => void;
 }
 
+// Check if cached notes are in the old format (sections-based) vs new format (markdown-based)
+function isOldNotesFormat(notesCache: Record<number, PageNotes>): boolean {
+  const entries = Object.values(notesCache);
+  if (entries.length === 0) return false;
+
+  // Old format has notes.sections array, new format has notes.markdown string
+  const firstEntry = entries[0];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return 'sections' in (firstEntry.notes as any) && !('markdown' in firstEntry.notes);
+}
+
 export const usePDFStore = create<PDFState>()(
   persist(
     (set, get) => ({
@@ -191,6 +202,14 @@ export const usePDFStore = create<PDFState>()(
         cachedFilename: state.cachedFilename,
         currentPage: state.currentPage,
       }),
+      // Migrate old format cache on rehydration
+      onRehydrateStorage: () => (state) => {
+        if (state && isOldNotesFormat(state.notesCache)) {
+          console.log('[NANA] Detected old notes format in cache, clearing for migration to markdown format');
+          state.notesCache = {};
+          state.cachedFilename = null;
+        }
+      },
     }
   )
 );

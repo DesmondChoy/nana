@@ -87,18 +87,9 @@ export default function StudyPage() {
         const currentPageContent = parsedPDF.pages[i];
         const previousPageContent = i > 0 ? parsedPDF.pages[i - 1] : undefined;
 
-        // Get context from previous page's generated notes
+        // Get context from previous page's generated notes (markdown format)
         const previousNotes = currentCache[pageNum - 1];
-        const previousNotesContext = previousNotes
-          ? previousNotes.notes.sections
-              .map((section) => {
-                const bullets = section.bullets
-                  .map((b) => `- ${b.text}`)
-                  .join('\n');
-                return `### ${section.title}\n${section.summary}\n${bullets}`;
-              })
-              .join('\n\n')
-          : undefined;
+        const previousNotesContext = previousNotes?.notes.markdown;
 
         try {
           const notes = await generateNotes({
@@ -166,17 +157,10 @@ export default function StudyPage() {
       const currentPageContent = parsedPDF.pages[pageIndex];
       const previousPageContent = pageIndex > 0 ? parsedPDF.pages[pageIndex - 1] : undefined;
 
-      // Get context from previous page's generated notes
+      // Get context from previous page's generated notes (markdown format)
       const currentCache = usePDFStore.getState().notesCache;
       const previousNotes = currentCache[pageNum - 1];
-      const previousNotesContext = previousNotes
-        ? previousNotes.notes.sections
-            .map((section) => {
-              const bullets = section.bullets.map((b) => `- ${b.text}`).join('\n');
-              return `### ${section.title}\n${section.summary}\n${bullets}`;
-            })
-            .join('\n\n')
-        : undefined;
+      const previousNotesContext = previousNotes?.notes.markdown;
 
       try {
         const notes = await generateNotes({
