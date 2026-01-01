@@ -2,6 +2,16 @@
 
 **NANA** (Not Another Note-Taking App) - An AI-powered study assistant that transforms PDFs into personalized learning notes.
 
+## Features
+
+- 📄 **Smart PDF Processing** - Two-phase pipeline extracts content once, generates notes efficiently
+- 🧮 **LaTeX Math Rendering** - Displays mathematical notation beautifully using KaTeX
+- 📝 **Markdown Notes** - Rich formatting with Obsidian-style callouts (note, warning, tip, etc.)
+- ⌨️ **Keyboard Navigation** - Arrow keys for quick page navigation while studying
+- 🔄 **Error Recovery** - Automatic retry for failed note generation
+- 🎯 **Personalized Learning** - Adapts to your study level, learning style, and topic mastery
+- 🔍 **Session-based Logging** - Debug logs grouped by study session for easier troubleshooting
+
 ## Quick Start
 
 ```bash
@@ -76,7 +86,7 @@ nana/
 NANA uses a two-phase AI pipeline to optimize performance and cost:
 
 1.  **Phase 1 (Upload):** The entire PDF is sent to Gemini Flash once. The model extracts text, structure, and layout, returning a clean JSON representation of every page.
-2.  **Phase 2 (Study):** When generating notes, we don't re-upload the file. Instead, we send a lightweight text payload (Current Page + Previous Page Context) to generate focused study materials.
+2.  **Phase 2 (Study):** When generating notes, we don't re-upload the file. Instead, we send a lightweight text payload (Current Page + Previous Page Context + User Profile) to generate focused study materials in markdown format with callouts and LaTeX math support.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -119,7 +129,7 @@ NANA uses a two-phase AI pipeline to optimize performance and cost:
 When running with `./dev.sh`, logs are written to:
 - `backend.log` - FastAPI server logs
 - `frontend.log` - Vite dev server logs
-- `debug/` - LLM prompts and responses saved as Markdown files (with token counts and timing)
+- `debug/` - LLM prompts and responses saved as Markdown files, grouped by session ID (with token counts and timing)
 
 View logs in real-time:
 ```bash
@@ -130,3 +140,11 @@ tail -f frontend.log
 ### API Documentation
 
 With the backend running, visit `http://localhost:8000/docs` for interactive API docs.
+
+### Keyboard Shortcuts
+
+While studying in the dual-pane view:
+- `←` or `↑` - Previous page
+- `→` or `↓` - Next page
+
+(Shortcuts are disabled when typing in input fields)
