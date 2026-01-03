@@ -1,6 +1,6 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 5 complete ✅. Upload loading UX improved.
+> **Current Status**: Phase 7 complete ✅. Markdown export implemented.
 >
 > **Next Up**: Phase 6 (Quiz Generation & Mastery Tracking).
 
@@ -310,14 +310,29 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
    - *Reasoning*: user-triggered quizzes align with requirement (no hardcoding) while mastery tracking showcases the closed-loop behavior even without a server DB.
    - ✅ *Progress*: Updated `prompts/quiz_generation.md` to align with Direct Context architecture.
 
-- [ ] 7. **Consolidated Markdown Export**
-   - *Libraries*: `remark`/`markdown-it` for preview (optional).
+- [x] 7. **Consolidated Markdown Export**
+   - *Libraries*: Browser Blob API for file download (no backend needed).
+   - *Design Decision*: Implemented as **pure frontend concatenation** instead of LLM consolidation. All notes are already cached client-side, so export is instant, free (no API costs), and works offline.
    - *Steps*:
-     1. User clicks "Export" button after reviewing dual-pane notes.
-     2. Frontend sends single API call with full PDF content + all generated page notes.
-     3. Backend uses consolidation prompt to synthesize: deduplicate concepts, create transitions, add summary.
-     4. Return polished Markdown; provide download via Blob + anchor click.
-   - *Reasoning*: Single batch call enables global context—LLM sees entire document to create coherent flow. Markdown keeps export simple, human-readable, and easy to convert to PDF later.
+     1. ✅ Create `frontend/src/utils/exportMarkdown.ts` - core export logic with TOC generation, expansion formatting, and browser download via Blob API.
+     2. ✅ Create `frontend/src/utils/index.ts` - barrel export for utilities.
+     3. ✅ Add "Export Notes" button to StudyPage header (desktop text + mobile icon).
+     4. ✅ Button disabled until all pages have generated notes.
+     5. ✅ Include inline expansions (elaborate/simplify/analogy) in export with blockquote formatting.
+     6. ✅ Show success toast notification after download.
+   - *Output Format*:
+     - Title: `# Study Notes: {filename}`
+     - Auto-generated Table of Contents with anchor links
+     - Page dividers using H2 headings (`## Page X`)
+     - Notes markdown content preserved (LaTeX, callouts, lists)
+     - Expansions section per page with labels and quoted selected text
+   - *Key Files*:
+     - `frontend/src/utils/exportMarkdown.ts` - `generateMarkdownExport()`, `downloadMarkdown()`, `getExportFilename()`
+     - `frontend/src/utils/index.ts` - barrel export
+     - `frontend/src/pages/StudyPage.tsx` - export button + handler
+   - *Reasoning*: Since all notes are already cached in Zustand/localStorage, LLM consolidation would add latency and cost without significant benefit. Simple concatenation with TOC provides a clean, predictable output. The Blob API enables client-side file generation without backend involvement.
+   - ✅ *Done (2025-01-03)*: **Phase 7 complete. Export tested with Playwright.**
+     - Verified: correct filename (`{original}_study_notes.md`), TOC with working anchor links, notes content matches source, expansions exported with labels, success toast appears.
 
 - [ ] 8. **Evaluation Logging & Telemetry**
     - *Libraries*: simple logging middleware (e.g., `structlog`) or JSON logging, browser `navigator.sendBeacon` for async telemetry.
@@ -346,15 +361,15 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
-- **Phase 5 Status**: ✅ Complete!
-  - ✅ Text selection triggers toolbar reliably
-  - ✅ Visual selection highlight persists after mouseup (bug fixed 2025-01-03)
-  - ✅ All 3 commands (Elaborate, Simplify, Analogy) call API successfully
-  - ✅ Expansion blocks render with correct styling
-  - ✅ Upload loading UX improved with immediate navigation + loading overlay (2025-01-03)
-  - ⚠️ Diagram feature removed (2025-01-03) - overengineered, not all content translates well to diagrams
+- **Phase 7 Status**: ✅ Complete!
+  - ✅ Export button in header (desktop text + mobile icon)
+  - ✅ Button disabled until all pages have generated notes
+  - ✅ Auto-generated Table of Contents with anchor links
+  - ✅ Inline expansions included with blockquote formatting
+  - ✅ Success toast notification after download
+  - ✅ Pure frontend implementation (no backend, instant, works offline)
 - **Next**: Phase 6 - Quiz Generation & Mastery Tracking
-- **Then**: Phase 7 - Consolidated Markdown export (simpler since notes are already markdown)
+- **Then**: Phase 8 - Evaluation Logging & Telemetry
 
 ## Completed Features Summary
 | Phase | Feature | Key Files |
@@ -366,6 +381,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 | 4.5 | Markdown + Callouts | `MarkdownRenderer.tsx`, `NotesResponse` schema |
 | 4.6 | LaTeX Math Rendering | `MarkdownRenderer.tsx`, `index.css`, `package.json` |
 | 5 | Inline Commands | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `useTextSelection.ts` |
+| 7 | Markdown Export | `utils/exportMarkdown.ts`, `utils/index.ts`, `StudyPage.tsx` |
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.

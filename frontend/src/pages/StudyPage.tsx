@@ -5,6 +5,8 @@ import NotesPanel from '../components/NotesPanel';
 import GenerationProgress from '../components/GenerationProgress';
 import ThemeToggle from '../components/ThemeToggle';
 import { generateNotes, logCacheHits } from '../api/client';
+import { generateMarkdownExport, downloadMarkdown, getExportFilename } from '../utils';
+import { useToast } from '../hooks/useToast';
 
 export default function StudyPage() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
@@ -223,6 +225,23 @@ export default function StudyPage() {
     clearProfile();
   }, [clearPDF, clearProfile]);
 
+  // Export functionality
+  const { toast } = useToast();
+
+  const isExportReady = parsedPDF
+    ? Object.keys(notesCache).length >= parsedPDF.total_pages
+    : false;
+
+  const handleExport = useCallback(() => {
+    if (!parsedPDF || !isExportReady) return;
+
+    const markdown = generateMarkdownExport({ parsedPDF, notesCache });
+    const filename = getExportFilename(parsedPDF.original_filename);
+    downloadMarkdown(markdown, filename);
+
+    toast.success(`Exported ${filename}`);
+  }, [parsedPDF, notesCache, isExportReady, toast]);
+
   const handleGoBack = useCallback(() => {
     clearUploadError();
     clearPDF();
@@ -311,6 +330,36 @@ export default function StudyPage() {
           )}
 
           <ThemeToggle />
+
+          {/* Export button - desktop */}
+          <button
+            onClick={handleExport}
+            disabled={!isExportReady}
+            className={`text-sm transition-colors hidden sm:block ${
+              isExportReady
+                ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+            }`}
+            title={isExportReady ? 'Export all notes as Markdown' : 'Generate all notes first'}
+          >
+            Export Notes
+          </button>
+
+          {/* Export button - mobile */}
+          <button
+            onClick={handleExport}
+            disabled={!isExportReady}
+            className={`sm:hidden p-2 transition-colors ${
+              isExportReady
+                ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+            }`}
+            title={isExportReady ? 'Export all notes as Markdown' : 'Generate all notes first'}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
 
           <button
             onClick={handleReset}
