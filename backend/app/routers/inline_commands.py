@@ -28,6 +28,26 @@ COMMAND_PROMPT_FILES = {
     InlineCommandType.ANALOGY: "analogy.md",
 }
 
+# Mapping from prior_expertise to targeted analogy instruction
+ANALOGY_INSTRUCTIONS = {
+    "Software Engineering": (
+        "Explain this concept using a programming analogy. "
+        "Draw from: functions, classes, APIs, version control, debugging, or code reviews."
+    ),
+    "Data Science/ML": (
+        "Explain this concept using a data science analogy. "
+        "Draw from: models, pipelines, features, training loops, or data preprocessing."
+    ),
+    "Statistics": (
+        "Explain this concept using a statistical analogy. "
+        "Draw from: distributions, sampling, hypothesis testing, confidence intervals, or variance."
+    ),
+    "Domain Novice": (
+        "Explain this concept using an everyday real-world analogy. "
+        "Draw from: cooking, sports, traffic, libraries, or familiar household activities."
+    ),
+}
+
 
 def load_prompt_template(command_type: InlineCommandType) -> str:
     """Load the prompt template for a specific command type."""
@@ -57,16 +77,26 @@ async def execute_inline_command(
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Build format kwargs
+    format_kwargs = {
+        "prior_expertise": request.user_profile.prior_expertise,
+        "math_comfort": request.user_profile.math_comfort,
+        "detail_level": request.user_profile.detail_level,
+        "selected_text": request.selected_text,
+        "page_number": request.page_number,
+        "page_text": request.page_text,
+    }
+
+    # Add analogy-specific instruction based on user's expertise
+    if request.command_type == InlineCommandType.ANALOGY:
+        format_kwargs["analogy_instruction"] = ANALOGY_INSTRUCTIONS.get(
+            request.user_profile.prior_expertise,
+            ANALOGY_INSTRUCTIONS["Domain Novice"],  # fallback
+        )
+
     # Fill prompt template with request data
     try:
-        filled_prompt = prompt_template.format(
-            prior_expertise=request.user_profile.prior_expertise,
-            math_comfort=request.user_profile.math_comfort,
-            detail_level=request.user_profile.detail_level,
-            selected_text=request.selected_text,
-            page_number=request.page_number,
-            page_text=request.page_text,
-        )
+        filled_prompt = prompt_template.format(**format_kwargs)
     except KeyError as e:
         raise HTTPException(status_code=500, detail=f"Prompt formatting error: Missing key {e}")
 

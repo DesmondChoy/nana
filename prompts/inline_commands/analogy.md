@@ -13,12 +13,7 @@ You are transforming study notes for a learner.
 
 ## Action: ANALOGY
 
-Explain the following concept using an analogy tailored to the learner's background:
-
-- For Software Engineering: use programming analogies (functions, classes, APIs, version control)
-- For Data Science/ML: use data science analogies (models, pipelines, features, training)
-- For Statistics: use statistical analogies (distributions, sampling, inference)
-- For Domain Novice: use everyday real-world analogies
+{analogy_instruction}
 
 ## Instructions
 1. Create an analogy that explains the selected text
