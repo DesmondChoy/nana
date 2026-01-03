@@ -36,6 +36,7 @@ export default function NotesPanel({
 }: NotesPanelProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExecutingCommand, setIsExecutingCommand] = useState(false);
+  const [executingCommandType, setExecutingCommandType] = useState<InlineCommandType | null>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
   const selection = useTextSelection(notesContainerRef);
   const clearSelection = useClearSelection();
@@ -55,6 +56,7 @@ export default function NotesPanel({
       if (!selection || !pageContent || !userProfile || !onAddExpansion) return;
 
       setIsExecutingCommand(true);
+      setExecutingCommandType(command);
       try {
         const response = await executeInlineCommand({
           commandType: command,
@@ -72,6 +74,7 @@ export default function NotesPanel({
         // Could add error toast here
       } finally {
         setIsExecutingCommand(false);
+        setExecutingCommandType(null);
       }
     },
     [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection]
@@ -159,7 +162,8 @@ export default function NotesPanel({
           containerRef={notesContainerRef}
           onCommand={handleCommand}
           isLoading={isExecutingCommand}
-          visible={!!selection}
+          loadingCommand={executingCommandType}
+          visible={!!selection || isExecutingCommand}
         />
       )}
 

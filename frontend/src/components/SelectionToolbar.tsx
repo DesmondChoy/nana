@@ -6,8 +6,16 @@ interface SelectionToolbarProps {
   containerRef: React.RefObject<HTMLElement | null>;
   onCommand: (command: InlineCommandType) => void;
   isLoading?: boolean;
+  loadingCommand?: InlineCommandType | null;
   visible?: boolean;
 }
+
+const LOADING_MESSAGES: Record<InlineCommandType, string> = {
+  elaborate: 'Elaborating...',
+  simplify: 'Simplifying...',
+  analogy: 'Creating analogy...',
+  diagram: 'Generating diagram...',
+};
 
 const COMMANDS: { type: InlineCommandType; icon: string; label: string }[] = [
   { type: 'elaborate', icon: '📝', label: 'Elaborate' },
@@ -21,6 +29,7 @@ export default function SelectionToolbar({
   containerRef,
   onCommand,
   isLoading = false,
+  loadingCommand = null,
   visible = true,
 }: SelectionToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -76,32 +85,30 @@ export default function SelectionToolbar({
       }}
       onMouseDown={handleMouseDown}
     >
-      {COMMANDS.map(({ type, icon, label }) => (
-        <button
-          key={type}
-          onClick={() => onCommand(type)}
-          onMouseDown={handleMouseDown}
-          disabled={isLoading}
-          tabIndex={-1}
-          className={`
-            flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium
-            transition-colors duration-150
-            ${
-              isLoading
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-50 text-gray-700 hover:bg-blue-100 hover:text-blue-700'
-            }
-          `}
-          title={label}
-        >
-          <span>{icon}</span>
-          <span className="hidden sm:inline">{label}</span>
-        </button>
-      ))}
-      {isLoading && (
-        <div className="flex items-center px-2">
-          <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+      {isLoading && loadingCommand ? (
+        <div className="flex items-center gap-3 px-4 py-2">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute h-6 w-6 rounded-full bg-blue-400 animate-ping opacity-50" />
+            <div className="h-6 w-6 rounded-full bg-blue-500 animate-pulse" />
+          </div>
+          <span className="text-sm font-medium text-blue-700 animate-pulse">
+            {LOADING_MESSAGES[loadingCommand]}
+          </span>
         </div>
+      ) : (
+        COMMANDS.map(({ type, icon, label }) => (
+          <button
+            key={type}
+            onClick={() => onCommand(type)}
+            onMouseDown={handleMouseDown}
+            tabIndex={-1}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 bg-gray-50 text-gray-700 hover:bg-blue-100 hover:text-blue-700"
+            title={label}
+          >
+            <span>{icon}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        ))
       )}
     </div>
   );
