@@ -152,13 +152,14 @@ export default function NotesPanel({
         </p>
       )}
 
-      {/* Selection Toolbar */}
-      {selection && canUseInlineCommands && (
+      {/* Selection Toolbar - always rendered but hidden when no selection to avoid DOM changes disrupting browser selection */}
+      {canUseInlineCommands && (
         <SelectionToolbar
-          selectionRect={selection.rect}
+          selectionRect={selection?.rect ?? new DOMRect()}
           containerRef={notesContainerRef}
           onCommand={handleCommand}
           isLoading={isExecutingCommand}
+          visible={!!selection}
         />
       )}
 

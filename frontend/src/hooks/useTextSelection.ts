@@ -60,15 +60,37 @@ export function useTextSelection(
   }, [containerRef]);
 
   useEffect(() => {
-    // Listen for selection changes
-    document.addEventListener('selectionchange', handleSelectionChange);
+    // Handle mouseup - this is when a selection is finalized after click-and-drag
+    // Use setTimeout to let the browser finalize the selection before we read it
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        handleSelectionChange();
+      }, 0);
+    };
 
-    // Also listen for mouseup to catch the final selection
-    document.addEventListener('mouseup', handleSelectionChange);
+    // Handle selectionchange - this fires when:
+    // 1. User makes a keyboard selection (Shift+arrows)
+    // 2. Selection is cleared (collapsed)
+    // 3. During mouse drag (intermediate events - we ignore these)
+    const handleSelectionChangeEvent = () => {
+      const windowSelection = window.getSelection();
+
+      // If selection is collapsed (cleared), update state to hide toolbar
+      if (!windowSelection || windowSelection.isCollapsed) {
+        setSelection(null);
+        return;
+      }
+
+      // For non-collapsed selections, only process on mouseup (not during drag)
+      // The mouseup handler will call handleSelectionChange with the final selection
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('selectionchange', handleSelectionChangeEvent);
 
     return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      document.removeEventListener('mouseup', handleSelectionChange);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('selectionchange', handleSelectionChangeEvent);
     };
   }, [handleSelectionChange]);
 

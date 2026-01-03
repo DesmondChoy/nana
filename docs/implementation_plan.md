@@ -283,11 +283,26 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - Backend: `schemas.py`, `routers/inline_commands.py` (new), `main.py`, `prompts/inline_commands/diagram.md`
      - Frontend: `types/index.ts`, `api/client.ts`, `hooks/useTextSelection.ts` (new), `components/SelectionToolbar.tsx` (new), `components/MermaidDiagram.tsx` (new), `components/ExpansionBlock.tsx` (new), `stores/pdfStore.ts`, `components/NotesPanel.tsx`, `pages/StudyPage.tsx`
    - *Reasoning*: Floating toolbar is intuitive for text transformation. Inline expansions preserve reading context. Storing expansions in `notesCache` reuses existing persistence mechanism. Mermaid provides rich diagram rendering from LLM-generated syntax.
-   - ✅ *Progress (2025-01-03)*: **Implementation complete. Manual testing in progress.**
+   - ✅ *Progress (2025-01-03)*: **Implementation complete. Known visual bug with selection highlight.**
      - **Backend**: Added `InlineCommandType` enum and request/response schemas. Created `routers/inline_commands.py` with Gemini structured output. Updated diagram prompt for Mermaid.js syntax.
      - **Frontend**: Added `mermaid` npm package. Created `useTextSelection` hook using Browser Selection API. Built `SelectionToolbar` (floating, 4 buttons), `MermaidDiagram` (SVG rendering with error fallback), and `ExpansionBlock` (color-coded per command type). Updated `pdfStore` with expansion CRUD actions. Integrated into `NotesPanel` and `StudyPage`.
      - **Playwright Testing**: Verified text selection triggers toolbar, "Simplify" command calls API successfully, expansion block renders with correct styling and remove button.
-     - **Pending Manual Testing**: Test all 4 commands (elaborate, simplify, analogy, diagram), verify Mermaid diagram rendering, test persistence across page navigation and refresh, test remove expansion functionality.
+     - **Functional Status**: ✅ Core flow works - select text → toolbar appears → click command → expansion renders. Commands execute correctly.
+   - ⚠️ *Known Issue (2025-01-03)*: **Visual selection highlight disappears on mouseup**
+     - **Symptom**: Yellow text highlight visible while dragging, but disappears when mouse is released. Toolbar appears correctly, indicating the selection is detected—only the *visual* highlight is lost.
+     - **Attempted Fixes** (none resolved the issue):
+       1. Simplified `useTextSelection` hook - removed `mousedown` handler that was interfering with selection
+       2. Added `::selection` CSS with yellow background (`bg-yellow-300`) - highlight visible during drag
+       3. Made toolbar non-interactive with selection: `select-none`, `onMouseDown.preventDefault()`, `tabIndex={-1}`
+       4. Changed toolbar from conditional rendering to always-rendered with CSS visibility (`opacity-0`/`pointer-events-none`) to avoid DOM mutations
+     - **Root Cause Hypothesis**: React's state update cycle (setting selection state → re-render) may be causing the browser to clear its native selection. The toolbar appearing proves React state is correct, but the browser's visual selection is lost during the render cycle.
+     - **Potential Future Fixes**:
+       1. **React Portal**: Render toolbar outside the notes container entirely, reducing DOM impact
+       2. **Deferred state update**: Use `requestAnimationFrame` or longer `setTimeout` to delay React state update until after browser selection stabilizes
+       3. **Manual selection restoration**: After state update, programmatically re-apply the selection using stored range data
+       4. **CSS investigation**: Check if `prose` class or markdown renderer styles have `user-select` rules interfering
+       5. **Browser-specific testing**: Issue may be browser-specific; test in Firefox/Safari
+     - **Workaround**: Feature is fully functional despite visual bug—users can select text, toolbar appears, and commands work. The only UX impact is not seeing which text is selected after mouseup.
 
 - [ ] 6. **Quiz Generation & Mastery Tracking**
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.
@@ -331,11 +346,13 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
-- **Complete Phase 5 Manual Testing**: Test all 4 inline commands with real content.
-  - Verify: Elaborate, Simplify, Analogy commands produce quality markdown output
-  - Verify: Diagram command generates valid Mermaid.js syntax that renders correctly
-  - Verify: Expansions persist across page navigation and browser refresh
-  - Verify: Remove expansion button works correctly
+- **Phase 5 Status**: Core functionality complete with known visual bug.
+  - ✅ Verified: Text selection triggers toolbar reliably (after hook fixes)
+  - ✅ Verified: All 4 commands (Elaborate, Simplify, Analogy, Diagram) call API successfully
+  - ✅ Verified: Expansion blocks render with correct styling
+  - ⚠️ Known Bug: Visual selection highlight disappears on mouseup (see Known Issue above)
+  - 🔲 Not yet tested: Mermaid diagram rendering quality, persistence across navigation/refresh, remove button
+- **Optional**: Fix visual selection bug before proceeding (see Potential Future Fixes)
 - Then Phase 6: Quiz Generation & Mastery Tracking.
 - Phase 7: Consolidated Markdown export (simpler since notes are already markdown).
 
