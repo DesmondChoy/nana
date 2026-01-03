@@ -1,6 +1,5 @@
 import type { Expansion, InlineCommandType } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
-import MermaidDiagram from './MermaidDiagram';
 
 // Styling per command type
 const EXPANSION_STYLES: Record<
@@ -24,12 +23,6 @@ const EXPANSION_STYLES: Record<
     border: 'border-purple-300',
     icon: '🔗',
     label: 'Analogy',
-  },
-  diagram: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-300',
-    icon: '📊',
-    label: 'Diagram',
   },
 };
 
@@ -85,11 +78,7 @@ export default function ExpansionBlock({
 
       {/* Content */}
       <div className="text-gray-700">
-        {expansion.is_diagram ? (
-          <MermaidDiagram code={expansion.content} id={expansion.id} />
-        ) : (
-          <MarkdownRenderer content={expansion.content} />
-        )}
+        <MarkdownRenderer content={expansion.content} />
       </div>
     </div>
   );

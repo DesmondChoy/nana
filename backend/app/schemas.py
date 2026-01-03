@@ -57,7 +57,6 @@ class InlineCommandType(str, Enum):
     ELABORATE = "elaborate"
     SIMPLIFY = "simplify"
     ANALOGY = "analogy"
-    DIAGRAM = "diagram"
 
 
 class InlineCommandRequest(BaseModel):
@@ -71,11 +70,6 @@ class InlineCommandRequest(BaseModel):
 
 
 class InlineCommandResponse(BaseModel):
-    """Response from inline text transformation.
-
-    For diagram commands, the content field contains Mermaid syntax.
-    For other commands, it contains markdown text.
-    """
-    content: str = Field(..., description="Transformed content (markdown or Mermaid syntax for diagrams)")
+    """Response from inline text transformation."""
+    content: str = Field(..., description="Transformed markdown content")
     command_type: InlineCommandType = Field(..., description="The command type that was executed")
-    is_diagram: bool = Field(default=False, description="True if content is Mermaid diagram syntax")

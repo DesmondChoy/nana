@@ -58,15 +58,14 @@ export interface NotesResponse {
 }
 
 // Inline command types
-export type InlineCommandType = 'elaborate' | 'simplify' | 'analogy' | 'diagram';
+export type InlineCommandType = 'elaborate' | 'simplify' | 'analogy';
 
 // Expansion from inline commands
 export interface Expansion {
   id: string; // Unique ID for this expansion
   command_type: InlineCommandType;
   selected_text: string; // Original text that was selected
-  content: string; // Transformed content (markdown or Mermaid)
-  is_diagram: boolean;
+  content: string; // Transformed markdown content
   created_at: string;
 }
 
@@ -74,7 +73,6 @@ export interface Expansion {
 export interface InlineCommandResponse {
   content: string;
   command_type: InlineCommandType;
-  is_diagram: boolean;
 }
 
 // Page notes cache entry

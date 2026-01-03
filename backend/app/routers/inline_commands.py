@@ -1,7 +1,7 @@
 """
 Inline Commands Router.
 
-Handles text transformation commands (elaborate, simplify, analogy, diagram)
+Handles text transformation commands (elaborate, simplify, analogy)
 that operate on user-selected text within the notes panel.
 """
 
@@ -26,7 +26,6 @@ COMMAND_PROMPT_FILES = {
     InlineCommandType.ELABORATE: "elaborate.md",
     InlineCommandType.SIMPLIFY: "simplify.md",
     InlineCommandType.ANALOGY: "analogy.md",
-    InlineCommandType.DIAGRAM: "diagram.md",
 }
 
 
@@ -51,7 +50,7 @@ async def execute_inline_command(
     """
     Execute an inline text transformation command.
 
-    Supports: elaborate, simplify, analogy, diagram
+    Supports: elaborate, simplify, analogy
     """
     try:
         prompt_template = load_prompt_template(request.command_type)
@@ -112,9 +111,8 @@ async def execute_inline_command(
     if not isinstance(parsed, InlineCommandResponse):
         raise HTTPException(status_code=500, detail="Gemini response did not match expected schema")
 
-    # Ensure the response has the correct command type and is_diagram flag
+    # Ensure the response has the correct command type
     return InlineCommandResponse(
         content=parsed.content,
         command_type=request.command_type,
-        is_diagram=request.command_type == InlineCommandType.DIAGRAM,
     )

@@ -287,7 +287,6 @@ export const usePDFStore = create<PDFState>()(
             command_type: response.command_type,
             selected_text: selectedText,
             content: response.content,
-            is_diagram: response.is_diagram,
             created_at: new Date().toISOString(),
           };
 

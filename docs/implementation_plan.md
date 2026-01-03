@@ -268,35 +268,33 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - **Verification**: Tested with Playwright—θ, f(x), R², h: X → Y, ∫ L(y,h(x))dP(x,y) all render correctly.
 
 - [x] 5. **Inline Highlight Command Actions**
-   - *Libraries*: Browser Selection API, `mermaid` for diagram rendering.
+   - *Libraries*: Browser Selection API.
    - *UX Decisions*:
      - **Trigger**: Floating toolbar near text selection (Medium/Notion style)
      - **Display**: Inline expansion below selected text with visual distinction
-     - **Diagrams**: Mermaid.js rendering (LLM outputs Mermaid syntax)
      - **Persistence**: Full persistence in localStorage (stored in `notesCache[page].expansions[]`)
+   - ⚠️ *Diagram feature removed (2025-01-03)*: The diagram generation functionality was removed as overengineered—not all content translates well to diagrams. Removed `mermaid` dependency, `MermaidDiagram.tsx` component, and `diagram.md` prompt.
    - *Backend Steps*:
      1. ✅ Add schemas: `InlineCommandType` enum, `InlineCommandRequest`, `InlineCommandResponse` to `schemas.py`
      2. ✅ Create `routers/inline_commands.py` - load prompt template, call Gemini with structured output
-     3. ✅ Update `prompts/inline_commands/diagram.md` to output Mermaid syntax instead of text instructions
-     4. ✅ Register router in `main.py`
+     3. ✅ Register router in `main.py`
    - *Frontend Steps*:
      1. ✅ Add types: `InlineCommandType`, `Expansion` interface, update `PageNotes` with `expansions?: Expansion[]`
      2. ✅ Add `executeInlineCommand()` to `api/client.ts`
      3. ✅ Create `hooks/useTextSelection.ts` - detect selection within container, return text + position rect
-     4. ✅ Create `components/SelectionToolbar.tsx` - floating toolbar with 4 command buttons
-     5. ✅ Create `components/MermaidDiagram.tsx` - render Mermaid code to SVG with error fallback
-     6. ✅ Create `components/ExpansionBlock.tsx` - colored container per command type, renders markdown or diagram
-     7. ✅ Update `stores/pdfStore.ts` - add `addExpansion()`, `removeExpansion()`, `getExpansionsForPage()` actions
-     8. ✅ Update `components/NotesPanel.tsx` - integrate selection handling, toolbar, and expansion display
-     9. ✅ Update `pages/StudyPage.tsx` - wire up expansion props to NotesPanel
+     4. ✅ Create `components/SelectionToolbar.tsx` - floating toolbar with 3 command buttons (Elaborate, Simplify, Analogy)
+     5. ✅ Create `components/ExpansionBlock.tsx` - colored container per command type, renders markdown
+     6. ✅ Update `stores/pdfStore.ts` - add `addExpansion()`, `removeExpansion()`, `getExpansionsForPage()` actions
+     7. ✅ Update `components/NotesPanel.tsx` - integrate selection handling, toolbar, and expansion display
+     8. ✅ Update `pages/StudyPage.tsx` - wire up expansion props to NotesPanel
    - *Key Files*:
-     - Backend: `schemas.py`, `routers/inline_commands.py` (new), `main.py`, `prompts/inline_commands/diagram.md`
-     - Frontend: `types/index.ts`, `api/client.ts`, `hooks/useTextSelection.ts` (new), `components/SelectionToolbar.tsx` (new), `components/MermaidDiagram.tsx` (new), `components/ExpansionBlock.tsx` (new), `stores/pdfStore.ts`, `components/NotesPanel.tsx`, `pages/StudyPage.tsx`
-   - *Reasoning*: Floating toolbar is intuitive for text transformation. Inline expansions preserve reading context. Storing expansions in `notesCache` reuses existing persistence mechanism. Mermaid provides rich diagram rendering from LLM-generated syntax.
+     - Backend: `schemas.py`, `routers/inline_commands.py`, `main.py`
+     - Frontend: `types/index.ts`, `api/client.ts`, `hooks/useTextSelection.ts`, `components/SelectionToolbar.tsx`, `components/ExpansionBlock.tsx`, `stores/pdfStore.ts`, `components/NotesPanel.tsx`, `pages/StudyPage.tsx`
+   - *Reasoning*: Floating toolbar is intuitive for text transformation. Inline expansions preserve reading context. Storing expansions in `notesCache` reuses existing persistence mechanism.
    - ✅ *Done (2025-01-03)*: **Phase 5 complete. All features working including visual selection highlight.**
-     - **Backend**: Added `InlineCommandType` enum and request/response schemas. Created `routers/inline_commands.py` with Gemini structured output. Updated diagram prompt for Mermaid.js syntax.
-     - **Frontend**: Added `mermaid` npm package. Created `useTextSelection` hook using Browser Selection API. Built `SelectionToolbar` (floating, 4 buttons), `MermaidDiagram` (SVG rendering with error fallback), and `ExpansionBlock` (color-coded per command type). Updated `pdfStore` with expansion CRUD actions. Integrated into `NotesPanel` and `StudyPage`.
-     - **Playwright Testing**: Verified text selection triggers toolbar, all 4 commands call API successfully, expansion blocks render with correct styling and remove button. Visual selection highlight persists after mouseup.
+     - **Backend**: Added `InlineCommandType` enum and request/response schemas. Created `routers/inline_commands.py` with Gemini structured output.
+     - **Frontend**: Created `useTextSelection` hook using Browser Selection API. Built `SelectionToolbar` (floating, 3 buttons), and `ExpansionBlock` (color-coded per command type). Updated `pdfStore` with expansion CRUD actions. Integrated into `NotesPanel` and `StudyPage`.
+     - **Playwright Testing**: Verified text selection triggers toolbar, all 3 commands (Elaborate, Simplify, Analogy) call API successfully, expansion blocks render with correct styling and remove button. Visual selection highlight persists after mouseup.
    - ✅ *Bug Fix (2025-01-03)*: **Visual selection highlight now persists after mouseup**
      - **Symptom**: Yellow text highlight was visible while dragging, but disappeared when mouse was released. Toolbar appeared correctly, indicating the selection was detected—only the *visual* highlight was lost.
      - **Root Cause**: Cloning a `Range` object stores references to specific DOM text nodes. When React re-renders (triggered by `setSelection()`), those text nodes are replaced with new nodes. The cloned Range then points to disconnected/orphaned nodes, causing `addRange()` to create a collapsed (empty) selection instead of restoring the original highlight.
@@ -351,10 +349,10 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Phase 5 Status**: ✅ Complete!
   - ✅ Text selection triggers toolbar reliably
   - ✅ Visual selection highlight persists after mouseup (bug fixed 2025-01-03)
-  - ✅ All 4 commands (Elaborate, Simplify, Analogy, Diagram) call API successfully
+  - ✅ All 3 commands (Elaborate, Simplify, Analogy) call API successfully
   - ✅ Expansion blocks render with correct styling
   - ✅ Upload loading UX improved with immediate navigation + loading overlay (2025-01-03)
-  - 🔲 Not yet tested: Mermaid diagram rendering quality, persistence across navigation/refresh, remove button
+  - ⚠️ Diagram feature removed (2025-01-03) - overengineered, not all content translates well to diagrams
 - **Next**: Phase 6 - Quiz Generation & Mastery Tracking
 - **Then**: Phase 7 - Consolidated Markdown export (simpler since notes are already markdown)
 
@@ -367,13 +365,13 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 | 4 | Dual-Pane Experience | `StudyPage.tsx`, `PDFViewer.tsx`, `NotesPanel.tsx` |
 | 4.5 | Markdown + Callouts | `MarkdownRenderer.tsx`, `NotesResponse` schema |
 | 4.6 | LaTeX Math Rendering | `MarkdownRenderer.tsx`, `index.css`, `package.json` |
-| 5 | Inline Commands | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `MermaidDiagram.tsx`, `useTextSelection.ts` |
+| 5 | Inline Commands | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `useTextSelection.ts` |
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.
 - **Functionalities Requiring Prompts**:
   1. *Notes Generation*: builds the initial per-page study notes using page content and user background.
-  2. *Inline Commands*: elaboration, simplification, analogy, and diagram-description prompts reuse shared context but toggle instruction blocks for desired transformation.
+  2. *Inline Commands*: elaboration, simplification, and analogy prompts reuse shared context but toggle instruction blocks for desired transformation.
   3. *Quiz Generation*: produces user-triggered quizzes plus rationales and remediation hints; leverages recent wrong answers to adjust difficulty.
   4. *Remediation Suggestions*: optional micro-prompts invoked when quizzes detect weaknesses, guiding the user back to specific sections.
   5. *Consolidated Markdown Refinement*: lightweight prompt to summarize or smooth concatenated notes before export (if needed for readability).

@@ -14,14 +14,12 @@ const LOADING_MESSAGES: Record<InlineCommandType, string> = {
   elaborate: 'Elaborating...',
   simplify: 'Simplifying...',
   analogy: 'Creating analogy...',
-  diagram: 'Generating diagram...',
 };
 
 const COMMANDS: { type: InlineCommandType; icon: string; label: string }[] = [
   { type: 'elaborate', icon: '📝', label: 'Elaborate' },
   { type: 'simplify', icon: '✨', label: 'Simplify' },
   { type: 'analogy', icon: '🔗', label: 'Analogy' },
-  { type: 'diagram', icon: '📊', label: 'Diagram' },
 ];
 
 export default function SelectionToolbar({

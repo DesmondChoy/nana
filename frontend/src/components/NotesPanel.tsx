@@ -14,7 +14,7 @@ interface NotesPanelProps {
   onRetry?: () => void;
   // For inline commands
   expansions?: Expansion[];
-  onAddExpansion?: (selectedText: string, response: { content: string; command_type: InlineCommandType; is_diagram: boolean }) => void;
+  onAddExpansion?: (selectedText: string, response: { content: string; command_type: InlineCommandType }) => void;
   onRemoveExpansion?: (expansionId: string) => void;
   pageContent?: PageContent;
   userProfile?: UserProfile;
@@ -151,7 +151,7 @@ export default function NotesPanel({
       {/* Hint for inline commands */}
       {canUseInlineCommands && (
         <p className="text-xs text-gray-400 mb-4">
-          💡 Select any text to elaborate, simplify, create an analogy, or generate a diagram
+          💡 Select any text to elaborate, simplify, or create an analogy
         </p>
       )}
 

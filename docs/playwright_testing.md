@@ -182,10 +182,9 @@ await page.waitForSelector('selector');
 - [ ] Hint text about selection is visible
 - [ ] Click-and-drag selects text
 - [ ] Selection toolbar appears near selected text
-- [ ] All 4 buttons visible: Elaborate, Simplify, Analogy, Diagram
+- [ ] All 3 buttons visible: Elaborate, Simplify, Analogy
 - [ ] Toolbar positioned correctly (above or below selection)
 - [ ] Toolbar doesn't overflow container bounds
-- [ ] **Known Bug**: Visual highlight may disappear on mouseup (toolbar still functional)
 
 ##### Inline Commands (if testing)
 - [ ] Clicking command button shows loading spinner
