@@ -39,6 +39,13 @@ interface PDFState {
   pdfFileUrl: string | null; // Blob URL for rendering - not persisted
   currentPage: number;
 
+  // Upload state (for immediate navigation)
+  uploadState: {
+    isUploading: boolean;
+    error: string | null;
+    pendingFileUrl: string | null; // Blob URL created before upload starts
+  };
+
   // Cached notes per page (keyed by page number)
   notesCache: Record<number, PageNotes>;
   cachedFilename: string | null; // Track which file the cache belongs to (persisted)
@@ -57,6 +64,10 @@ interface PDFState {
   storageWarning: boolean;
 
   // Actions
+  startUpload: (fileUrl: string) => void;
+  uploadSuccess: (pdf: ParsedPDF) => void;
+  uploadFailed: (error: string) => void;
+  clearUploadError: () => void;
   setParsedPDF: (pdf: ParsedPDF, fileUrl?: string) => void;
   setPdfFileUrl: (url: string) => void;
   clearPDF: () => void;
@@ -91,6 +102,11 @@ export const usePDFStore = create<PDFState>()(
       parsedPDF: null,
       pdfFileUrl: null,
       currentPage: 1,
+      uploadState: {
+        isUploading: false,
+        error: null,
+        pendingFileUrl: null,
+      },
       notesCache: {},
       cachedFilename: null,
       failedPages: new Set<number>(),
@@ -100,6 +116,63 @@ export const usePDFStore = create<PDFState>()(
         totalPages: 0,
       },
       storageWarning: false,
+
+      startUpload: (fileUrl) =>
+        set({
+          uploadState: {
+            isUploading: true,
+            error: null,
+            pendingFileUrl: fileUrl,
+          },
+        }),
+
+      uploadSuccess: (pdf) => {
+        const state = get();
+        const fileUrl = state.uploadState.pendingFileUrl;
+        // Keep cache if re-uploading the same file, otherwise clear it
+        const isSameFile = state.cachedFilename === pdf.original_filename;
+        const preservedCache = isSameFile ? state.notesCache : {};
+        const preservedPage = isSameFile ? state.currentPage : 1;
+
+        set({
+          parsedPDF: pdf,
+          pdfFileUrl: fileUrl,
+          currentPage: preservedPage,
+          notesCache: preservedCache,
+          cachedFilename: pdf.original_filename,
+          failedPages: isSameFile ? state.failedPages : new Set<number>(),
+          uploadState: {
+            isUploading: false,
+            error: null,
+            pendingFileUrl: null,
+          },
+          generationProgress: {
+            isGenerating: false,
+            completedPages: Object.keys(preservedCache).length,
+            totalPages: pdf.total_pages,
+          },
+        });
+      },
+
+      uploadFailed: (error) =>
+        set((state) => {
+          // Revoke the pending URL on failure
+          if (state.uploadState.pendingFileUrl) {
+            URL.revokeObjectURL(state.uploadState.pendingFileUrl);
+          }
+          return {
+            uploadState: {
+              isUploading: false,
+              error,
+              pendingFileUrl: null,
+            },
+          };
+        }),
+
+      clearUploadError: () =>
+        set((state) => ({
+          uploadState: { ...state.uploadState, error: null },
+        })),
 
       setParsedPDF: (pdf, fileUrl) => {
         const state = get();
@@ -127,14 +200,22 @@ export const usePDFStore = create<PDFState>()(
 
       clearPDF: () => {
         // Revoke the blob URL to free memory
-        const currentUrl = get().pdfFileUrl;
-        if (currentUrl) {
-          URL.revokeObjectURL(currentUrl);
+        const state = get();
+        if (state.pdfFileUrl) {
+          URL.revokeObjectURL(state.pdfFileUrl);
+        }
+        if (state.uploadState.pendingFileUrl) {
+          URL.revokeObjectURL(state.uploadState.pendingFileUrl);
         }
         set({
           parsedPDF: null,
           pdfFileUrl: null,
           currentPage: 1,
+          uploadState: {
+            isUploading: false,
+            error: null,
+            pendingFileUrl: null,
+          },
           notesCache: {},
           cachedFilename: null,
           failedPages: new Set<number>(),

@@ -1,6 +1,6 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 5 complete ✅. Visual selection bug fixed.
+> **Current Status**: Phase 5 complete ✅. Upload loading UX improved.
 >
 > **Next Up**: Phase 6 (Quiz Generation & Mastery Tracking).
 
@@ -212,6 +212,16 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
    - ✅ *Feature (2024-12-29)*: **Keyboard Navigation & Error Retry**
      - **Keyboard nav**: Arrow Left/Up for previous page, Arrow Right/Down for next page. Ignores keypresses in input fields. See `StudyPage.tsx:198-219`.
      - **Error retry**: Added `failedPages: Set<number>` to pdfStore to track failed generations. NotesPanel shows error state with retry button. `handleRetryPage()` regenerates single page with same context assembly. See `pdfStore.ts:170-182`, `NotesPanel.tsx:44-79`.
+   - ✅ *Enhancement (2025-01-03)*: **Immediate Navigation with Upload Loading Overlay**
+     - **Problem**: After clicking "Start Learning", the app appeared frozen—only button text changed to "Processing PDF..." with no visual feedback.
+     - **Solution**: Implemented optimistic UI navigation. User is immediately navigated to StudyPage with a dedicated loading overlay while PDF is being processed.
+     - **Implementation**:
+       - Added `uploadState` to `pdfStore.ts`: `{isUploading, error, pendingFileUrl}` with actions `startUpload()`, `uploadSuccess()`, `uploadFailed()`.
+       - Modified `App.tsx` to show StudyPage when `isUploading` is true (not just when `parsedPDF` exists).
+       - Modified `UploadPage.tsx` to call `startUpload()` before API call, triggering immediate navigation.
+       - Added loading overlay to `StudyPage.tsx`: animated spinner + "Processing Your PDF" message. Error state shows message + "Go Back" button.
+     - **UX Improvement**: Users see immediate visual feedback (spinner, progress text) instead of a frozen button. Perceived performance is faster even though total wait time is unchanged.
+     - **Key Files**: `pdfStore.ts`, `App.tsx`, `UploadPage.tsx`, `StudyPage.tsx`
 
 - [x] 4.5. **Full Markdown Notes with Obsidian Callouts**
    - *Libraries*: `react-markdown` for markdown rendering, `remark-gfm` for GitHub Flavored Markdown (tables, strikethrough).
@@ -343,6 +353,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
   - ✅ Visual selection highlight persists after mouseup (bug fixed 2025-01-03)
   - ✅ All 4 commands (Elaborate, Simplify, Analogy, Diagram) call API successfully
   - ✅ Expansion blocks render with correct styling
+  - ✅ Upload loading UX improved with immediate navigation + loading overlay (2025-01-03)
   - 🔲 Not yet tested: Mermaid diagram rendering quality, persistence across navigation/refresh, remove button
 - **Next**: Phase 6 - Quiz Generation & Mastery Tracking
 - **Then**: Phase 7 - Consolidated Markdown export (simpler since notes are already markdown)

@@ -15,6 +15,8 @@ export default function StudyPage() {
   const generationProgress = usePDFStore((state) => state.generationProgress);
   const setGenerationProgress = usePDFStore((state) => state.setGenerationProgress);
   const clearPDF = usePDFStore((state) => state.clearPDF);
+  const uploadState = usePDFStore((state) => state.uploadState);
+  const clearUploadError = usePDFStore((state) => state.clearUploadError);
 
   const profile = useUserStore((state) => state.profile);
   const clearProfile = useUserStore((state) => state.clearProfile);
@@ -212,6 +214,62 @@ export default function StudyPage() {
     clearPDF();
     clearProfile();
   }, [clearPDF, clearProfile]);
+
+  const handleGoBack = useCallback(() => {
+    clearUploadError();
+    clearPDF();
+  }, [clearUploadError, clearPDF]);
+
+  // Show loading overlay when upload is in progress
+  if (uploadState.isUploading || uploadState.error) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
+          {uploadState.error ? (
+            // Error state
+            <>
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Upload Failed
+              </h2>
+              <p className="text-gray-600 mb-6">{uploadState.error}</p>
+              <button
+                onClick={handleGoBack}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Go Back
+              </button>
+            </>
+          ) : (
+            // Loading state
+            <>
+              <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Processing Your PDF
+              </h2>
+              <p className="text-gray-600">
+                Extracting text and structure from your document...
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!parsedPDF || !profile) {
     return null;

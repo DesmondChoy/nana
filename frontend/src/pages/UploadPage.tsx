@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { useUserStore, usePDFStore } from '../stores';
 import { uploadPDF } from '../api/client';
 import StorageWarning from '../components/StorageWarning';
@@ -39,7 +38,9 @@ const GOAL_OPTIONS: PrimaryGoal[] = [
 export default function UploadPage() {
   const setProfile = useUserStore((state) => state.setProfile);
   const existingProfile = useUserStore((state) => state.profile);
-  const setParsedPDF = usePDFStore((state) => state.setParsedPDF);
+  const startUpload = usePDFStore((state) => state.startUpload);
+  const uploadSuccess = usePDFStore((state) => state.uploadSuccess);
+  const uploadFailed = usePDFStore((state) => state.uploadFailed);
   const cachedFilename = usePDFStore((state) => state.cachedFilename);
   const notesCache = usePDFStore((state) => state.notesCache);
   const clearNotesCache = usePDFStore((state) => state.clearNotesCache);
@@ -50,18 +51,20 @@ export default function UploadPage() {
   const [additionalContext, setAdditionalContext] = useState(existingProfile?.additional_context || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      // Create blob URL for PDF rendering
-      const fileUrl = URL.createObjectURL(file);
+  const handleUpload = useCallback(async (file: File) => {
+    // Create blob URL before starting upload
+    const fileUrl = URL.createObjectURL(file);
+    startUpload(fileUrl);
+
+    try {
       const parsedData = await uploadPDF(file);
-      return { parsedData, fileUrl };
-    },
-    onSuccess: ({ parsedData, fileUrl }) => {
-      setParsedPDF(parsedData, fileUrl);
-    },
-  });
+      uploadSuccess(parsedData);
+    } catch (error) {
+      uploadFailed(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+    }
+  }, [startUpload, uploadSuccess, uploadFailed]);
 
   const isProfileComplete =
     formData.prior_expertise &&
@@ -69,10 +72,10 @@ export default function UploadPage() {
     formData.detail_level &&
     formData.primary_goal;
 
-  const canSubmit = isProfileComplete && selectedFile && !uploadMutation.isPending;
+  const canSubmit = isProfileComplete && selectedFile && !isSubmitting;
 
   const handleSubmit = useCallback(() => {
-    if (!isProfileComplete || !selectedFile) return;
+    if (!isProfileComplete || !selectedFile || isSubmitting) return;
 
     const profile: UserProfile = {
       prior_expertise: formData.prior_expertise!,
@@ -82,9 +85,10 @@ export default function UploadPage() {
       additional_context: additionalContext || undefined,
     };
 
+    setIsSubmitting(true);
     setProfile(profile);
-    uploadMutation.mutate(selectedFile);
-  }, [formData, additionalContext, selectedFile, setProfile, uploadMutation, isProfileComplete]);
+    handleUpload(selectedFile);
+  }, [formData, additionalContext, selectedFile, setProfile, handleUpload, isProfileComplete, isSubmitting]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -301,13 +305,6 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Error Message */}
-          {uploadMutation.isError && (
-            <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
-              {uploadMutation.error?.message || 'Upload failed. Please try again.'}
-            </div>
-          )}
-
           {/* Submit Button */}
           <button
             className={`w-full py-3 rounded-md font-medium transition-colors ${
@@ -318,7 +315,7 @@ export default function UploadPage() {
             disabled={!canSubmit}
             onClick={handleSubmit}
           >
-            {uploadMutation.isPending ? 'Processing PDF...' : 'Start Learning'}
+            Start Learning
           </button>
         </div>
       </div>
