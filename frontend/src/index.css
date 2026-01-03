@@ -1,18 +1,289 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 
-/* Custom base styles */
+/* Enable class-based dark mode (Tailwind v4 requires explicit config) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================
+   Design System Tokens
+   ============================================ */
+:root {
+  /* Colors - Light Mode */
+  --color-bg-primary: theme(colors.gray.50);
+  --color-bg-secondary: theme(colors.white);
+  --color-bg-tertiary: theme(colors.gray.200);
+  --color-bg-elevated: theme(colors.white);
+
+  --color-text-primary: theme(colors.gray.900);
+  --color-text-secondary: theme(colors.gray.600);
+  --color-text-tertiary: theme(colors.gray.500);
+
+  --color-border: theme(colors.gray.300);
+  --color-border-light: theme(colors.gray.200);
+
+  /* Shadows - Light Mode */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+}
+
+/* Dark Mode Tokens */
+.dark {
+  --color-bg-primary: theme(colors.gray.900);
+  --color-bg-secondary: theme(colors.gray.800);
+  --color-bg-tertiary: theme(colors.gray.700);
+  --color-bg-elevated: theme(colors.gray.800);
+
+  --color-text-primary: theme(colors.gray.50);
+  --color-text-secondary: theme(colors.gray.300);
+  --color-text-tertiary: theme(colors.gray.400);
+
+  --color-border: theme(colors.gray.600);
+  --color-border-light: theme(colors.gray.700);
+
+  /* Shadows - Dark Mode (more pronounced for visibility) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 min-h-screen;
+  html {
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
   }
 
-  /* Make text selection visible with high contrast */
+  body {
+    @apply min-h-screen antialiased;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    /* Smooth transitions for theme changes */
+    transition: background-color var(--duration-normal) var(--ease-out),
+                color var(--duration-normal) var(--ease-out);
+  }
+
+  /* Text selection - works in both light and dark modes */
   ::selection {
     @apply bg-yellow-300 text-gray-900;
   }
-
   ::-moz-selection {
     @apply bg-yellow-300 text-gray-900;
+  }
+
+  /* Improved focus states */
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+  }
+
+  .dark :focus-visible {
+    @apply ring-offset-gray-800;
+  }
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+@layer utilities {
+  /* Skeleton loading animation */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden;
+    background: linear-gradient(
+      90deg,
+      theme(colors.gray.200) 0%,
+      theme(colors.gray.100) 50%,
+      theme(colors.gray.200) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  .dark .skeleton {
+    background: linear-gradient(
+      90deg,
+      theme(colors.gray.700) 0%,
+      theme(colors.gray.600) 50%,
+      theme(colors.gray.700) 100%
+    );
+  }
+
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn var(--duration-normal) var(--ease-out) forwards;
+  }
+
+  /* Slide up animation (for toasts, toolbars) */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp var(--duration-normal) var(--ease-out) forwards;
+  }
+
+  /* Slide down animation */
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-down {
+    animation: slideDown var(--duration-normal) var(--ease-out) forwards;
+  }
+}
+
+/* ============================================
+   Component Styles
+   ============================================ */
+@layer components {
+  /* Card with theme-aware styling */
+  .card {
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-sm);
+    border-radius: theme(borderRadius.lg);
+    transition: background-color var(--duration-normal) var(--ease-out),
+                border-color var(--duration-normal) var(--ease-out),
+                color var(--duration-normal) var(--ease-out),
+                box-shadow var(--duration-normal) var(--ease-out);
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Input fields with theme-aware styling */
+  .input {
+    width: 100%;
+    border-radius: theme(borderRadius.md);
+    padding: theme(spacing.2) theme(spacing.3);
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    transition: background-color var(--duration-normal) var(--ease-out),
+                border-color var(--duration-normal) var(--ease-out),
+                color var(--duration-normal) var(--ease-out),
+                box-shadow var(--duration-normal) var(--ease-out);
+  }
+
+  .input:focus {
+    @apply outline-none ring-2 ring-blue-500;
+    border-color: theme(colors.blue.500);
+  }
+
+  .input::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  /* Button base styles */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: theme(borderRadius.md);
+    font-weight: 500;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: theme(borderRadius.md);
+    font-weight: 500;
+    transition: all var(--duration-fast) var(--ease-out);
+    background-color: theme(colors.blue.600);
+    color: white;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: theme(colors.blue.700);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: theme(borderRadius.md);
+    font-weight: 500;
+    transition: all var(--duration-fast) var(--ease-out);
+    background-color: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-border);
   }
 }

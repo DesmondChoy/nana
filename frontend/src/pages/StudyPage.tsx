@@ -1,8 +1,9 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { usePDFStore, useUserStore } from '../stores';
 import PDFViewer from '../components/PDFViewer';
 import NotesPanel from '../components/NotesPanel';
 import GenerationProgress from '../components/GenerationProgress';
+import ThemeToggle from '../components/ThemeToggle';
 import { generateNotes, logCacheHits } from '../api/client';
 
 export default function StudyPage() {
@@ -29,6 +30,13 @@ export default function StudyPage() {
 
   // Track if we've logged cache hits for this PDF to avoid duplicate logs
   const cacheHitsLoggedRef = useRef<string | null>(null);
+
+  // Track header shadow on scroll
+  const [headerShadow, setHeaderShadow] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Mobile tab state
+  const [mobileActiveTab, setMobileActiveTab] = useState<'pdf' | 'notes'>('notes');
 
   // Eager sequential notes generation
   useEffect(() => {
@@ -77,7 +85,7 @@ export default function StudyPage() {
         if (abortController.signal.aborted) break;
 
         const pageNum = i + 1;
-        
+
         // Access latest cache via getState()
         const currentCache = usePDFStore.getState().notesCache;
 
@@ -223,14 +231,14 @@ export default function StudyPage() {
   // Show loading overlay when upload is in progress
   if (uploadState.isUploading || uploadState.error) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
+      <div className="h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 max-w-md w-full mx-4 text-center border border-gray-100 dark:border-gray-700">
           {uploadState.error ? (
             // Error state
             <>
-              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                 <svg
-                  className="w-6 h-6 text-red-600"
+                  className="w-6 h-6 text-red-600 dark:text-red-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -243,13 +251,13 @@ export default function StudyPage() {
                   />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 Upload Failed
               </h2>
-              <p className="text-gray-600 mb-6">{uploadState.error}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">{uploadState.error}</p>
               <button
                 onClick={handleGoBack}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 Go Back
               </button>
@@ -257,11 +265,11 @@ export default function StudyPage() {
           ) : (
             // Loading state
             <>
-              <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 Processing Your PDF
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-400">
                 Extracting text and structure from your document...
               </p>
             </>
@@ -280,15 +288,21 @@ export default function StudyPage() {
   const currentExpansions = getExpansionsForPage(currentPage);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 transition-colors">
       {/* Header */}
-      <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="font-semibold text-gray-900">NANA</h1>
-          <span className="text-sm text-gray-500">{parsedPDF.original_filename}</span>
+      <header
+        className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between transition-shadow duration-200 ${
+          headerShadow ? 'shadow-md' : ''
+        }`}
+      >
+        <div className="flex items-center gap-4 min-w-0">
+          <h1 className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0">NANA</h1>
+          <span className="text-sm text-gray-500 dark:text-gray-400 truncate hidden sm:block">
+            {parsedPDF.original_filename}
+          </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {generationProgress.isGenerating && (
             <GenerationProgress
               completed={generationProgress.completedPages}
@@ -296,71 +310,173 @@ export default function StudyPage() {
             />
           )}
 
+          <ThemeToggle />
+
           <button
             onClick={handleReset}
-            className="text-sm text-gray-600 hover:text-gray-900"
+            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors hidden sm:block"
           >
             Upload New PDF
+          </button>
+
+          {/* Mobile: icon button for reset */}
+          <button
+            onClick={handleReset}
+            className="sm:hidden p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            title="Upload New PDF"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
           </button>
         </div>
       </header>
 
-      {/* Main Content - Dual Pane */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Pane - PDF Viewer */}
-        <div className="w-1/2 border-r bg-gray-200 overflow-hidden">
-          <PDFViewer
-            pdfUrl={pdfFileUrl}
-            totalPages={parsedPDF.total_pages}
-            currentPage={currentPage}
-            onPageChange={handlePageChange}
-          />
+      {/* Main Content - Desktop: Dual Pane, Mobile: Tab-based */}
+      <main
+        ref={mainRef}
+        className="flex-1 flex overflow-hidden"
+        onScroll={(e) => {
+          const scrollTop = (e.target as HTMLElement).scrollTop;
+          setHeaderShadow(scrollTop > 0);
+        }}
+      >
+        {/* Desktop Layout */}
+        <div className="hidden md:flex flex-1">
+          {/* Left Pane - PDF Viewer */}
+          <div className="w-1/2 bg-gray-200 dark:bg-gray-950 overflow-hidden border-r border-gray-300 dark:border-gray-700">
+            <PDFViewer
+              pdfUrl={pdfFileUrl}
+              totalPages={parsedPDF.total_pages}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+            />
+          </div>
+
+          {/* Right Pane - Notes */}
+          <div className="w-1/2 bg-white dark:bg-gray-800 overflow-auto">
+            <NotesPanel
+              pageNumber={currentPage}
+              notes={currentNotes?.notes ?? null}
+              isGenerating={generationProgress.isGenerating && !currentNotes}
+              hasFailed={failedPages.has(currentPage)}
+              onRetry={() => handleRetryPage(currentPage)}
+              expansions={currentExpansions}
+              onAddExpansion={(selectedText, response) =>
+                addExpansion(currentPage, selectedText, response)
+              }
+              onRemoveExpansion={(expansionId) =>
+                removeExpansion(currentPage, expansionId)
+              }
+              pageContent={currentPageContent}
+              userProfile={profile}
+              sessionId={parsedPDF.session_id}
+            />
+          </div>
         </div>
 
-        {/* Right Pane - Notes */}
-        <div className="w-1/2 bg-white overflow-auto">
-          <NotesPanel
-            pageNumber={currentPage}
-            notes={currentNotes?.notes ?? null}
-            isGenerating={generationProgress.isGenerating && !currentNotes}
-            hasFailed={failedPages.has(currentPage)}
-            onRetry={() => handleRetryPage(currentPage)}
-            expansions={currentExpansions}
-            onAddExpansion={(selectedText, response) =>
-              addExpansion(currentPage, selectedText, response)
-            }
-            onRemoveExpansion={(expansionId) =>
-              removeExpansion(currentPage, expansionId)
-            }
-            pageContent={currentPageContent}
-            userProfile={profile}
-            sessionId={parsedPDF.session_id}
-          />
+        {/* Mobile Layout - Tab-based */}
+        <div className="md:hidden flex-1 flex flex-col">
+          {/* Content area */}
+          <div className="flex-1 overflow-hidden">
+            {mobileActiveTab === 'pdf' ? (
+              <div className="h-full bg-gray-200 dark:bg-gray-950">
+                <PDFViewer
+                  pdfUrl={pdfFileUrl}
+                  totalPages={parsedPDF.total_pages}
+                  currentPage={currentPage}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            ) : (
+              <div className="h-full bg-white dark:bg-gray-800 overflow-auto">
+                <NotesPanel
+                  pageNumber={currentPage}
+                  notes={currentNotes?.notes ?? null}
+                  isGenerating={generationProgress.isGenerating && !currentNotes}
+                  hasFailed={failedPages.has(currentPage)}
+                  onRetry={() => handleRetryPage(currentPage)}
+                  expansions={currentExpansions}
+                  onAddExpansion={(selectedText, response) =>
+                    addExpansion(currentPage, selectedText, response)
+                  }
+                  onRemoveExpansion={(expansionId) =>
+                    removeExpansion(currentPage, expansionId)
+                  }
+                  pageContent={currentPageContent}
+                  userProfile={profile}
+                  sessionId={parsedPDF.session_id}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Tab Bar */}
+          <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex">
+            <button
+              onClick={() => setMobileActiveTab('pdf')}
+              className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                mobileActiveTab === 'pdf'
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              PDF
+            </button>
+            <button
+              onClick={() => setMobileActiveTab('notes')}
+              className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                mobileActiveTab === 'notes'
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Notes
+            </button>
+          </div>
         </div>
       </main>
 
       {/* Footer - Page Navigation */}
-      <footer className="bg-white border-t px-4 py-2 flex items-center justify-center gap-4">
+      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-center gap-4">
         <button
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                     text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700
+                     disabled:opacity-50 disabled:cursor-not-allowed
+                     hover:bg-gray-50 dark:hover:bg-gray-600
+                     active:scale-[0.98] transition-all duration-150
+                     min-w-[44px] min-h-[44px] flex items-center justify-center"
           title="Previous page (← or ↑)"
         >
-          ← Previous
+          <span className="hidden sm:inline">← Previous</span>
+          <span className="sm:hidden">←</span>
         </button>
 
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[100px] text-center">
           Page {currentPage} of {parsedPDF.total_pages}
         </span>
 
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage >= parsedPDF.total_pages}
-          className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                     text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700
+                     disabled:opacity-50 disabled:cursor-not-allowed
+                     hover:bg-gray-50 dark:hover:bg-gray-600
+                     active:scale-[0.98] transition-all duration-150
+                     min-w-[44px] min-h-[44px] flex items-center justify-center"
           title="Next page (→ or ↓)"
         >
-          Next →
+          <span className="hidden sm:inline">Next →</span>
+          <span className="sm:hidden">→</span>
         </button>
       </footer>
     </div>

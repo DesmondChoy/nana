@@ -1,8 +1,9 @@
 import { useUserStore, usePDFStore } from './stores';
 import UploadPage from './pages/UploadPage';
 import StudyPage from './pages/StudyPage';
+import ToastProvider from './components/ToastProvider';
 
-function App() {
+function AppContent() {
   const profile = useUserStore((state) => state.profile);
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
   const isUploading = usePDFStore((state) => state.uploadState.isUploading);
@@ -14,6 +15,14 @@ function App() {
 
   // Show upload page if no profile or no PDF
   return <UploadPage />;
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
 }
 
 export default App;

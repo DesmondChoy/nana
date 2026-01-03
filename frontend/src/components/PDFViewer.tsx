@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -22,6 +22,8 @@ export default function PDFViewer({
   const [pageWidth, setPageWidth] = useState<number>(600);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const onDocumentLoadSuccess = useCallback(() => {
     setIsLoading(false);
@@ -33,10 +35,21 @@ export default function PDFViewer({
     setError(err.message);
   }, []);
 
+  // Smooth scroll to active thumbnail when page changes
+  useEffect(() => {
+    const activeThumb = thumbnailRefs.current[currentPage - 1];
+    if (activeThumb && sidebarRef.current) {
+      activeThumb.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [currentPage]);
+
   // Show fallback if no PDF URL
   if (!pdfUrl) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-500">
+      <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
         <div className="text-center">
           <p className="mb-2">PDF viewer unavailable</p>
           <p className="text-sm">Re-upload the PDF to enable visual rendering</p>
@@ -47,16 +60,20 @@ export default function PDFViewer({
 
   return (
     <div className="h-full flex">
-      {/* Thumbnail sidebar */}
-      <div className="w-20 bg-gray-300 p-2 overflow-y-auto flex-shrink-0">
+      {/* Thumbnail sidebar - hidden on mobile */}
+      <div
+        ref={sidebarRef}
+        className="hidden md:block w-20 bg-gray-200 dark:bg-gray-800 p-2 overflow-y-auto flex-shrink-0 border-r border-gray-300 dark:border-gray-700"
+      >
         {Array.from({ length: totalPages }, (_, idx) => (
           <button
             key={idx + 1}
+            ref={(el) => { thumbnailRefs.current[idx] = el; }}
             onClick={() => onPageChange(idx + 1)}
-            className={`w-full mb-2 p-2 text-xs rounded transition-colors ${
+            className={`w-full mb-2 p-2 text-xs font-medium rounded-md transition-all duration-150 ${
               currentPage === idx + 1
-                ? 'bg-blue-500 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-500 text-white ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-800 scale-105'
+                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
             }`}
           >
             {idx + 1}
@@ -65,7 +82,7 @@ export default function PDFViewer({
       </div>
 
       {/* Main PDF content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-2 sm:p-4 bg-gray-100 dark:bg-gray-900">
         <div className="flex justify-center">
           <Document
             file={pdfUrl}
@@ -75,13 +92,13 @@ export default function PDFViewer({
               <div className="flex items-center justify-center h-96">
                 <div className="text-center">
                   <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-                  <p className="text-gray-600">Loading PDF...</p>
+                  <p className="text-gray-600 dark:text-gray-400">Loading PDF...</p>
                 </div>
               </div>
             }
             error={
               <div className="flex items-center justify-center h-96">
-                <div className="text-center text-red-600">
+                <div className="text-center text-red-600 dark:text-red-400">
                   <p className="font-medium">Failed to load PDF</p>
                   <p className="text-sm mt-1">{error}</p>
                 </div>
@@ -94,8 +111,8 @@ export default function PDFViewer({
               renderTextLayer={true}
               renderAnnotationLayer={true}
               loading={
-                <div className="flex items-center justify-center h-96 w-[600px] bg-white">
-                  <div className="animate-pulse text-gray-400">Loading page...</div>
+                <div className="flex items-center justify-center h-96 w-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <div className="animate-pulse text-gray-400 dark:text-gray-500">Loading page...</div>
                 </div>
               }
             />
@@ -104,20 +121,26 @@ export default function PDFViewer({
 
         {/* Zoom controls */}
         {!isLoading && !error && (
-          <div className="fixed bottom-20 right-8 flex items-center gap-2 bg-white rounded-lg shadow-lg p-2">
+          <div className="fixed bottom-20 right-4 sm:right-8 flex items-center gap-1 sm:gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-1.5 sm:p-2">
             <button
               onClick={() => setPageWidth((w) => Math.max(300, w - 100))}
-              className="px-3 py-1 text-sm rounded hover:bg-gray-100"
+              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 px-3 py-2 text-sm font-medium rounded-md
+                         text-gray-700 dark:text-gray-200
+                         hover:bg-gray-100 dark:hover:bg-gray-700
+                         active:scale-95 transition-all duration-150"
               title="Zoom out"
             >
               −
             </button>
-            <span className="text-sm text-gray-600 min-w-[60px] text-center">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300 min-w-[50px] sm:min-w-[60px] text-center">
               {Math.round((pageWidth / 600) * 100)}%
             </span>
             <button
               onClick={() => setPageWidth((w) => Math.min(1200, w + 100))}
-              className="px-3 py-1 text-sm rounded hover:bg-gray-100"
+              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 px-3 py-2 text-sm font-medium rounded-md
+                         text-gray-700 dark:text-gray-200
+                         hover:bg-gray-100 dark:hover:bg-gray-700
+                         active:scale-95 transition-all duration-150"
               title="Zoom in"
             >
               +

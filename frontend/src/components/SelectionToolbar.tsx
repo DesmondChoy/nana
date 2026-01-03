@@ -74,8 +74,8 @@ export default function SelectionToolbar({
   return (
     <div
       ref={toolbarRef}
-      className={`absolute z-50 flex gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1 select-none transition-opacity duration-100 ${
-        visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      className={`absolute z-50 flex gap-1 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 p-1 select-none ${
+        visible ? 'animate-slide-down opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       style={{
         top: position.top,
@@ -86,10 +86,10 @@ export default function SelectionToolbar({
       {isLoading && loadingCommand ? (
         <div className="flex items-center gap-3 px-4 py-2">
           <div className="relative flex items-center justify-center">
-            <div className="absolute h-6 w-6 rounded-full bg-blue-400 animate-ping opacity-50" />
-            <div className="h-6 w-6 rounded-full bg-blue-500 animate-pulse" />
+            <div className="absolute h-6 w-6 rounded-full bg-blue-400 dark:bg-blue-500 animate-ping opacity-50" />
+            <div className="h-6 w-6 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
           </div>
-          <span className="text-sm font-medium text-blue-700 animate-pulse">
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-300 animate-pulse">
             {LOADING_MESSAGES[loadingCommand]}
           </span>
         </div>
@@ -100,10 +100,15 @@ export default function SelectionToolbar({
             onClick={() => onCommand(type)}
             onMouseDown={handleMouseDown}
             tabIndex={-1}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 bg-gray-50 text-gray-700 hover:bg-blue-100 hover:text-blue-700"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium
+                       transition-all duration-150
+                       bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-200
+                       hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300
+                       active:scale-95
+                       min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
             title={label}
           >
-            <span>{icon}</span>
+            <span className="text-base">{icon}</span>
             <span className="hidden sm:inline">{label}</span>
           </button>
         ))

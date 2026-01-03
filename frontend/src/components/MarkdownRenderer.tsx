@@ -5,91 +5,104 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import type { ReactNode, ComponentPropsWithoutRef } from 'react';
 
-// Obsidian callout type styling
+// Obsidian callout type styling with dark mode support
 const CALLOUT_STYLES: Record<
   string,
-  { bg: string; border: string; icon: string; titleColor: string }
+  { bg: string; border: string; icon: string; titleColor: string; textColor: string }
 > = {
   abstract: {
-    bg: 'bg-purple-50',
-    border: 'border-purple-400',
+    bg: 'bg-purple-50 dark:bg-purple-900/30',
+    border: 'border-purple-400 dark:border-purple-500',
     icon: '📋',
-    titleColor: 'text-purple-800',
+    titleColor: 'text-purple-800 dark:text-purple-200',
+    textColor: 'text-purple-900 dark:text-purple-100',
   },
   note: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-400',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+    border: 'border-blue-400 dark:border-blue-500',
     icon: '📝',
-    titleColor: 'text-blue-800',
+    titleColor: 'text-blue-800 dark:text-blue-200',
+    textColor: 'text-blue-900 dark:text-blue-100',
   },
   info: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-400',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+    border: 'border-blue-400 dark:border-blue-500',
     icon: 'ℹ️',
-    titleColor: 'text-blue-800',
+    titleColor: 'text-blue-800 dark:text-blue-200',
+    textColor: 'text-blue-900 dark:text-blue-100',
   },
   tip: {
-    bg: 'bg-green-50',
-    border: 'border-green-400',
+    bg: 'bg-green-50 dark:bg-green-900/30',
+    border: 'border-green-400 dark:border-green-500',
     icon: '💡',
-    titleColor: 'text-green-800',
+    titleColor: 'text-green-800 dark:text-green-200',
+    textColor: 'text-green-900 dark:text-green-100',
   },
   example: {
-    bg: 'bg-slate-50',
-    border: 'border-slate-400',
+    bg: 'bg-slate-50 dark:bg-slate-800/50',
+    border: 'border-slate-400 dark:border-slate-500',
     icon: '📖',
-    titleColor: 'text-slate-800',
+    titleColor: 'text-slate-800 dark:text-slate-200',
+    textColor: 'text-slate-900 dark:text-slate-100',
   },
   question: {
-    bg: 'bg-yellow-50',
-    border: 'border-yellow-400',
+    bg: 'bg-yellow-50 dark:bg-yellow-900/30',
+    border: 'border-yellow-400 dark:border-yellow-500',
     icon: '❓',
-    titleColor: 'text-yellow-800',
+    titleColor: 'text-yellow-800 dark:text-yellow-200',
+    textColor: 'text-yellow-900 dark:text-yellow-100',
   },
   quote: {
-    bg: 'bg-gray-50',
-    border: 'border-gray-400',
+    bg: 'bg-gray-50 dark:bg-gray-700/50',
+    border: 'border-gray-400 dark:border-gray-500',
     icon: '💬',
-    titleColor: 'text-gray-800',
+    titleColor: 'text-gray-800 dark:text-gray-200',
+    textColor: 'text-gray-900 dark:text-gray-100',
   },
   warning: {
-    bg: 'bg-orange-50',
-    border: 'border-orange-400',
+    bg: 'bg-orange-50 dark:bg-orange-900/30',
+    border: 'border-orange-400 dark:border-orange-500',
     icon: '⚠️',
-    titleColor: 'text-orange-800',
+    titleColor: 'text-orange-800 dark:text-orange-200',
+    textColor: 'text-orange-900 dark:text-orange-100',
   },
   danger: {
-    bg: 'bg-red-50',
-    border: 'border-red-400',
+    bg: 'bg-red-50 dark:bg-red-900/30',
+    border: 'border-red-400 dark:border-red-500',
     icon: '🚨',
-    titleColor: 'text-red-800',
+    titleColor: 'text-red-800 dark:text-red-200',
+    textColor: 'text-red-900 dark:text-red-100',
   },
   bug: {
-    bg: 'bg-red-50',
-    border: 'border-red-400',
+    bg: 'bg-red-50 dark:bg-red-900/30',
+    border: 'border-red-400 dark:border-red-500',
     icon: '🐛',
-    titleColor: 'text-red-800',
+    titleColor: 'text-red-800 dark:text-red-200',
+    textColor: 'text-red-900 dark:text-red-100',
   },
   success: {
-    bg: 'bg-green-50',
-    border: 'border-green-400',
+    bg: 'bg-green-50 dark:bg-green-900/30',
+    border: 'border-green-400 dark:border-green-500',
     icon: '✅',
-    titleColor: 'text-green-800',
+    titleColor: 'text-green-800 dark:text-green-200',
+    textColor: 'text-green-900 dark:text-green-100',
   },
   failure: {
-    bg: 'bg-red-50',
-    border: 'border-red-400',
+    bg: 'bg-red-50 dark:bg-red-900/30',
+    border: 'border-red-400 dark:border-red-500',
     icon: '❌',
-    titleColor: 'text-red-800',
+    titleColor: 'text-red-800 dark:text-red-200',
+    textColor: 'text-red-900 dark:text-red-100',
   },
 };
 
 // Default style for unknown callout types
 const DEFAULT_CALLOUT_STYLE = {
-  bg: 'bg-gray-50',
-  border: 'border-gray-400',
+  bg: 'bg-gray-50 dark:bg-gray-700/50',
+  border: 'border-gray-400 dark:border-gray-500',
   icon: '📌',
-  titleColor: 'text-gray-800',
+  titleColor: 'text-gray-800 dark:text-gray-200',
+  textColor: 'text-gray-900 dark:text-gray-100',
 };
 
 interface CalloutBlockProps {
@@ -109,7 +122,7 @@ export function CalloutBlock({ type, title, children }: CalloutBlockProps) {
         <span>{style.icon}</span>
         <span>{title || type.charAt(0).toUpperCase() + type.slice(1)}</span>
       </div>
-      <div className="text-gray-700">{children}</div>
+      <div className={style.textColor}>{children}</div>
     </div>
   );
 }
@@ -220,7 +233,7 @@ export default function MarkdownRenderer({
   const processedContent = preprocessMarkdown(content);
 
   return (
-    <div className={`prose prose-sm max-w-none ${className}`}>
+    <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -240,7 +253,7 @@ export default function MarkdownRenderer({
             // Regular blockquote
             return (
               <blockquote
-                className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4"
+                className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4"
                 {...props}
               >
                 {children}
@@ -255,7 +268,7 @@ export default function MarkdownRenderer({
             if (isInline) {
               return (
                 <code
-                  className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono"
+                  className="bg-gray-100 dark:bg-gray-700 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono"
                   {...props}
                 >
                   {children}
@@ -280,28 +293,28 @@ export default function MarkdownRenderer({
           ),
           // Style headings
           h1: ({ children, ...props }) => (
-            <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-4" {...props}>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-4" {...props}>
               {children}
             </h1>
           ),
           h2: ({ children, ...props }) => (
-            <h2 className="text-xl font-bold text-gray-800 mt-5 mb-3" {...props}>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-5 mb-3" {...props}>
               {children}
             </h2>
           ),
           h3: ({ children, ...props }) => (
-            <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2" {...props}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2" {...props}>
               {children}
             </h3>
           ),
           // Style lists
           ul: ({ children, ...props }) => (
-            <ul className="list-disc list-inside space-y-1 my-3" {...props}>
+            <ul className="list-disc list-inside space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
               {children}
             </ul>
           ),
           ol: ({ children, ...props }) => (
-            <ol className="list-decimal list-inside space-y-1 my-3" {...props}>
+            <ol className="list-decimal list-inside space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
               {children}
             </ol>
           ),
@@ -309,7 +322,7 @@ export default function MarkdownRenderer({
           a: ({ children, href, ...props }) => (
             <a
               href={href}
-              className="text-blue-600 hover:text-blue-800 underline"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
               target="_blank"
               rel="noopener noreferrer"
               {...props}
@@ -319,31 +332,31 @@ export default function MarkdownRenderer({
           ),
           // Style paragraphs
           p: ({ children, ...props }) => (
-            <p className="my-2 leading-relaxed" {...props}>
+            <p className="my-2 leading-relaxed text-gray-700 dark:text-gray-300" {...props}>
               {children}
             </p>
           ),
           // Style strong/bold
           strong: ({ children, ...props }) => (
-            <strong className="font-semibold text-gray-900" {...props}>
+            <strong className="font-semibold text-gray-900 dark:text-gray-100" {...props}>
               {children}
             </strong>
           ),
           // Style tables
           table: ({ children, ...props }) => (
             <div className="overflow-x-auto my-4">
-              <table className="min-w-full border-collapse border border-gray-300" {...props}>
+              <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600" {...props}>
                 {children}
               </table>
             </div>
           ),
           th: ({ children, ...props }) => (
-            <th className="border border-gray-300 bg-gray-100 px-4 py-2 text-left font-semibold" {...props}>
+            <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 px-4 py-2 text-left font-semibold text-gray-900 dark:text-gray-100" {...props}>
               {children}
             </th>
           ),
           td: ({ children, ...props }) => (
-            <td className="border border-gray-300 px-4 py-2" {...props}>
+            <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-700 dark:text-gray-300" {...props}>
               {children}
             </td>
           ),

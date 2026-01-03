@@ -176,11 +176,23 @@ export function useTextSelection(
       }, 0);
     };
 
+    // Handle touchend - this is when a touch selection is finalized on mobile
+    // On iOS/Android, the browser handles long-press to select natively.
+    // When the user lifts their finger, we can read the selection.
+    const handleTouchEnd = () => {
+      // Use a longer timeout for touch as mobile browsers may need more time
+      // to finalize the selection after the user lifts their finger
+      setTimeout(() => {
+        handleSelectionChange();
+      }, 100);
+    };
+
     // Handle selectionchange - this fires when:
     // 1. User makes a keyboard selection (Shift+arrows)
     // 2. Selection is cleared (collapsed)
     // 3. During mouse drag (intermediate events - we ignore these)
     // 4. When we restore selection in useLayoutEffect (ignore these)
+    // 5. On mobile when selection handles are dragged (use this for live updates)
     const handleSelectionChangeEvent = () => {
       // Skip if we're in the middle of restoring the selection
       if (isRestoringRef.current) {
@@ -195,15 +207,27 @@ export function useTextSelection(
         return;
       }
 
-      // For non-collapsed selections, only process on mouseup (not during drag)
+      // On touch devices, selectionchange fires when user drags selection handles
+      // We can use this to update the toolbar position in real-time
+      // Check if we're on a touch device by detecting if touch events are supported
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+      if (isTouchDevice) {
+        // For touch devices, update selection on every selectionchange
+        // This provides better UX as the toolbar follows the selection handles
+        handleSelectionChange();
+      }
+      // For non-touch devices, only process on mouseup (not during drag)
       // The mouseup handler will call handleSelectionChange with the final selection
     };
 
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchend', handleTouchEnd);
     document.addEventListener('selectionchange', handleSelectionChangeEvent);
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchend', handleTouchEnd);
       document.removeEventListener('selectionchange', handleSelectionChangeEvent);
     };
   }, [handleSelectionChange]);
