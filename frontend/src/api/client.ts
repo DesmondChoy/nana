@@ -4,6 +4,8 @@ import type {
   UserProfile,
   TopicMastery,
   NotesResponse,
+  InlineCommandType,
+  InlineCommandResponse,
 } from '../types';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -87,4 +89,42 @@ export async function logCacheHits(params: LogCacheHitsParams): Promise<void> {
     // Silent fail - this is just for debugging
     console.warn('Failed to log cache hits:', error);
   });
+}
+
+// Execute inline command (elaborate, simplify, analogy, diagram)
+export interface ExecuteInlineCommandParams {
+  commandType: InlineCommandType;
+  selectedText: string;
+  pageNumber: number;
+  pageText: string;
+  userProfile: UserProfile;
+  sessionId?: string;
+  signal?: AbortSignal;
+}
+
+export async function executeInlineCommand(
+  params: ExecuteInlineCommandParams
+): Promise<InlineCommandResponse> {
+  const response = await fetch(`${API_BASE}/inline-command`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      command_type: params.commandType,
+      selected_text: params.selectedText,
+      page_number: params.pageNumber,
+      page_text: params.pageText,
+      user_profile: params.userProfile,
+      session_id: params.sessionId ?? null,
+    }),
+    signal: params.signal,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Command failed' }));
+    throw new Error(error.detail || 'Failed to execute inline command');
+  }
+
+  return response.json();
 }

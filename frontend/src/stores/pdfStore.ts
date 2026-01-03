@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import type { ParsedPDF, PageNotes, NotesResponse } from '../types';
+import type { ParsedPDF, PageNotes, NotesResponse, Expansion, InlineCommandResponse } from '../types';
 
 // Custom storage with quota error handling
 const createSafeStorage = (): StateStorage => ({
@@ -68,6 +68,10 @@ interface PDFState {
   setStorageWarning: (warning: boolean) => void;
   markPageFailed: (pageNumber: number) => void;
   clearPageFailure: (pageNumber: number) => void;
+  // Expansion actions
+  addExpansion: (pageNumber: number, selectedText: string, response: InlineCommandResponse) => void;
+  removeExpansion: (pageNumber: number, expansionId: string) => void;
+  getExpansionsForPage: (pageNumber: number) => Expansion[];
 }
 
 // Check if cached notes are in the old format (sections-based) vs new format (markdown-based)
@@ -191,6 +195,54 @@ export const usePDFStore = create<PDFState>()(
           newFailedPages.delete(pageNumber);
           return { failedPages: newFailedPages };
         }),
+
+      addExpansion: (pageNumber, selectedText, response) =>
+        set((state) => {
+          const existingNotes = state.notesCache[pageNumber];
+          if (!existingNotes) return state;
+
+          const newExpansion: Expansion = {
+            id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            command_type: response.command_type,
+            selected_text: selectedText,
+            content: response.content,
+            is_diagram: response.is_diagram,
+            created_at: new Date().toISOString(),
+          };
+
+          return {
+            notesCache: {
+              ...state.notesCache,
+              [pageNumber]: {
+                ...existingNotes,
+                expansions: [...(existingNotes.expansions || []), newExpansion],
+              },
+            },
+          };
+        }),
+
+      removeExpansion: (pageNumber, expansionId) =>
+        set((state) => {
+          const existingNotes = state.notesCache[pageNumber];
+          if (!existingNotes || !existingNotes.expansions) return state;
+
+          return {
+            notesCache: {
+              ...state.notesCache,
+              [pageNumber]: {
+                ...existingNotes,
+                expansions: existingNotes.expansions.filter(
+                  (exp) => exp.id !== expansionId
+                ),
+              },
+            },
+          };
+        }),
+
+      getExpansionsForPage: (pageNumber) => {
+        const notes = get().notesCache[pageNumber];
+        return notes?.expansions || [];
+      },
     }),
     {
       name: 'nana-pdf-storage',

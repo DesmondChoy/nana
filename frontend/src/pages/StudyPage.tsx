@@ -21,6 +21,9 @@ export default function StudyPage() {
   const failedPages = usePDFStore((state) => state.failedPages);
   const markPageFailed = usePDFStore((state) => state.markPageFailed);
   const clearPageFailure = usePDFStore((state) => state.clearPageFailure);
+  const addExpansion = usePDFStore((state) => state.addExpansion);
+  const removeExpansion = usePDFStore((state) => state.removeExpansion);
+  const getExpansionsForPage = usePDFStore((state) => state.getExpansionsForPage);
 
   // Track if we've logged cache hits for this PDF to avoid duplicate logs
   const cacheHitsLoggedRef = useRef<string | null>(null);
@@ -215,6 +218,8 @@ export default function StudyPage() {
   }
 
   const currentNotes = notesCache[currentPage];
+  const currentPageContent = parsedPDF?.pages[currentPage - 1];
+  const currentExpansions = getExpansionsForPage(currentPage);
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -262,6 +267,16 @@ export default function StudyPage() {
             isGenerating={generationProgress.isGenerating && !currentNotes}
             hasFailed={failedPages.has(currentPage)}
             onRetry={() => handleRetryPage(currentPage)}
+            expansions={currentExpansions}
+            onAddExpansion={(selectedText, response) =>
+              addExpansion(currentPage, selectedText, response)
+            }
+            onRemoveExpansion={(expansionId) =>
+              removeExpansion(currentPage, expansionId)
+            }
+            pageContent={currentPageContent}
+            userProfile={profile}
+            sessionId={parsedPDF.session_id}
           />
         </div>
       </main>

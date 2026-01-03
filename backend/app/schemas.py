@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -47,3 +48,34 @@ class NotesResponse(BaseModel):
     markdown: str = Field(..., description="Full markdown content of the notes with Obsidian-style callouts")
     topic_labels: List[str] = Field(default_factory=list, description="Topics covered for mastery tracking (lowercase, hyphenated)")
     page_references: List[int] = Field(default_factory=list, description="Page numbers referenced in these notes")
+
+
+# --- Inline Command API Models ---
+
+class InlineCommandType(str, Enum):
+    """Types of inline text transformations available."""
+    ELABORATE = "elaborate"
+    SIMPLIFY = "simplify"
+    ANALOGY = "analogy"
+    DIAGRAM = "diagram"
+
+
+class InlineCommandRequest(BaseModel):
+    """Request payload for inline text transformation."""
+    command_type: InlineCommandType = Field(..., description="Type of transformation to apply")
+    selected_text: str = Field(..., description="Text selected by the user for transformation")
+    page_number: int = Field(..., description="Page number where the selection occurred")
+    page_text: str = Field(..., description="Full text of the page for context")
+    user_profile: UserProfile = Field(..., description="User profile for personalization")
+    session_id: Optional[str] = Field(None, description="Session ID for debug log grouping")
+
+
+class InlineCommandResponse(BaseModel):
+    """Response from inline text transformation.
+
+    For diagram commands, the content field contains Mermaid syntax.
+    For other commands, it contains markdown text.
+    """
+    content: str = Field(..., description="Transformed content (markdown or Mermaid syntax for diagrams)")
+    command_type: InlineCommandType = Field(..., description="The command type that was executed")
+    is_diagram: bool = Field(default=False, description="True if content is Mermaid diagram syntax")

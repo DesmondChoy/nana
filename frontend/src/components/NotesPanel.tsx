@@ -1,6 +1,10 @@
-import { useState } from 'react';
-import type { NotesResponse } from '../types';
+import { useState, useRef, useCallback } from 'react';
+import type { NotesResponse, InlineCommandType, Expansion, PageContent, UserProfile } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
+import SelectionToolbar from './SelectionToolbar';
+import ExpansionBlock from './ExpansionBlock';
+import { useTextSelection, useClearSelection } from '../hooks/useTextSelection';
+import { executeInlineCommand } from '../api/client';
 
 interface NotesPanelProps {
   pageNumber: number;
@@ -8,6 +12,13 @@ interface NotesPanelProps {
   isGenerating: boolean;
   hasFailed?: boolean;
   onRetry?: () => void;
+  // For inline commands
+  expansions?: Expansion[];
+  onAddExpansion?: (selectedText: string, response: { content: string; command_type: InlineCommandType; is_diagram: boolean }) => void;
+  onRemoveExpansion?: (expansionId: string) => void;
+  pageContent?: PageContent;
+  userProfile?: UserProfile;
+  sessionId?: string;
 }
 
 export default function NotesPanel({
@@ -16,8 +27,18 @@ export default function NotesPanel({
   isGenerating,
   hasFailed = false,
   onRetry,
+  expansions = [],
+  onAddExpansion,
+  onRemoveExpansion,
+  pageContent,
+  userProfile,
+  sessionId,
 }: NotesPanelProps) {
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isExecutingCommand, setIsExecutingCommand] = useState(false);
+  const notesContainerRef = useRef<HTMLDivElement>(null);
+  const selection = useTextSelection(notesContainerRef);
+  const clearSelection = useClearSelection();
 
   const handleRetry = async () => {
     if (!onRetry) return;
@@ -28,6 +49,33 @@ export default function NotesPanel({
       setIsRetrying(false);
     }
   };
+
+  const handleCommand = useCallback(
+    async (command: InlineCommandType) => {
+      if (!selection || !pageContent || !userProfile || !onAddExpansion) return;
+
+      setIsExecutingCommand(true);
+      try {
+        const response = await executeInlineCommand({
+          commandType: command,
+          selectedText: selection.text,
+          pageNumber: pageNumber,
+          pageText: pageContent.text,
+          userProfile: userProfile,
+          sessionId: sessionId,
+        });
+
+        onAddExpansion(selection.text, response);
+        clearSelection();
+      } catch (error) {
+        console.error('Failed to execute inline command:', error);
+        // Could add error toast here
+      } finally {
+        setIsExecutingCommand(false);
+      }
+    },
+    [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection]
+  );
 
   if (isGenerating || isRetrying) {
     return (
@@ -88,14 +136,54 @@ export default function NotesPanel({
     );
   }
 
+  // Check if we can enable inline commands
+  const canUseInlineCommands = !!(pageContent && userProfile && onAddExpansion);
+
   return (
-    <div className="p-6">
+    <div className="p-6 relative" ref={notesContainerRef}>
       <h2 className="text-lg font-semibold text-gray-800 mb-4">
         Notes for Page {pageNumber}
       </h2>
 
+      {/* Hint for inline commands */}
+      {canUseInlineCommands && (
+        <p className="text-xs text-gray-400 mb-4">
+          💡 Select any text to elaborate, simplify, create an analogy, or generate a diagram
+        </p>
+      )}
+
+      {/* Selection Toolbar */}
+      {selection && canUseInlineCommands && (
+        <SelectionToolbar
+          selectionRect={selection.rect}
+          containerRef={notesContainerRef}
+          onCommand={handleCommand}
+          isLoading={isExecutingCommand}
+        />
+      )}
+
       {/* Markdown content with callout support */}
       <MarkdownRenderer content={notes.markdown} />
+
+      {/* Expansions */}
+      {expansions.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-600 mb-3">
+            Expansions ({expansions.length})
+          </h3>
+          {expansions.map((expansion) => (
+            <ExpansionBlock
+              key={expansion.id}
+              expansion={expansion}
+              onRemove={
+                onRemoveExpansion
+                  ? () => onRemoveExpansion(expansion.id)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
 
       {/* Topic labels as badges */}
       {notes.topic_labels && notes.topic_labels.length > 0 && (

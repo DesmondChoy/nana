@@ -1,8 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 4.5 complete. Full markdown notes with Obsidian-style callouts.
+> **Current Status**: Phase 5 implemented. Manual testing in progress.
 >
-> **Next Up**: Phase 5 (Inline Commands) or Phase 6 (Quiz Generation).
+> **Next Up**: Complete Phase 5 manual testing, then Phase 6 (Quiz Generation).
 
 ## Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -236,10 +236,58 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - **Solution**: Added `preprocessMarkdown()` with regex `/\\n/g` to convert escaped sequences to actual newlines. Fixed critical bug where `processedContent` was declared but original `content` was still passed to ReactMarkdown.
      - **Verification**: Tested all 21 pages of S-PRMLS Day1a.pdf—all render correctly with callouts, tables, math, and nested lists.
 
+- [x] 4.6. **LaTeX Math Rendering with KaTeX**
+   - *Libraries*: `remark-math` for parsing LaTeX syntax, `rehype-katex` for rendering, `katex` for fonts/CSS.
+   - *Steps*:
+     1. ✅ Install npm packages: `katex`, `remark-math`, `rehype-katex`, `@types/katex`.
+     2. ✅ Import KaTeX CSS in `index.css` for math font styling.
+     3. ✅ Add `remarkMath` and `rehypeKatex` plugins to ReactMarkdown in `MarkdownRenderer.tsx`.
+     4. ✅ Fix callout parsing to preserve KaTeX-rendered React elements (was extracting text which caused duplication).
+     5. ✅ Add markdown preprocessing to separate callout titles from content with blank lines.
+   - *Reasoning*: Academic PDFs contain mathematical notation ($\theta$, $f(x)$, integrals, etc.) that was displaying as raw LaTeX text. KaTeX provides fast, high-quality math rendering in the browser.
+   - ✅ *Done*:
+     - **Dependencies**: Added `katex@0.16.27`, `remark-math@6.0.0`, `rehype-katex@7.0.1` to package.json.
+     - **CSS**: Imported `katex/dist/katex.min.css` in index.css.
+     - **Plugins**: Added `remarkMath` (parses `$...$` and `$$...$$`) and `rehypeKatex` (renders to HTML) to ReactMarkdown.
+     - **Callout Fix**: Modified `parseCalloutFromChildren()` to pass original React children (preserving KaTeX elements) instead of extracted text.
+     - **Preprocessing**: Added regex to insert blank line after `> [!type] Title` to separate title from content in React tree.
+   - ✅ *Bug Fix (2024-12-31)*: **Math duplication in callouts**
+     - **Issue**: Math like θ showed as "θ\thetaθ" (three times) inside callouts.
+     - **Root Cause**: `extractTextContent()` captured both KaTeX's hidden MathML (for accessibility) and visible HTML, then used that text as content.
+     - **Solution**: Only use text extraction for pattern matching; pass original React children to CalloutBlock to preserve KaTeX rendering. Added preprocessing to ensure callout content becomes separate React children.
+     - **Verification**: Tested with Playwright—θ, f(x), R², h: X → Y, ∫ L(y,h(x))dP(x,y) all render correctly.
+
 - [ ] 5. **Inline Highlight Command Actions**
-   - *Libraries*: `selection-api` utilities, small headless UI component (e.g., `@headlessui/react`) for context menus/modals.
-   - *Steps*: capture text selections in the notes pane, present command menu, collect tone/depth adjustments, call `/notes/actions` endpoint (which uses the inline command prompt), and patch the note block while keeping page references.
-   - *Reasoning*: centralizing all edits through the prompt API avoids diverging logic between initial notes and refinements, ensuring consistent grounding.
+   - *Libraries*: Browser Selection API, `mermaid` for diagram rendering.
+   - *UX Decisions*:
+     - **Trigger**: Floating toolbar near text selection (Medium/Notion style)
+     - **Display**: Inline expansion below selected text with visual distinction
+     - **Diagrams**: Mermaid.js rendering (LLM outputs Mermaid syntax)
+     - **Persistence**: Full persistence in localStorage (stored in `notesCache[page].expansions[]`)
+   - *Backend Steps*:
+     1. ✅ Add schemas: `InlineCommandType` enum, `InlineCommandRequest`, `InlineCommandResponse` to `schemas.py`
+     2. ✅ Create `routers/inline_commands.py` - load prompt template, call Gemini with structured output
+     3. ✅ Update `prompts/inline_commands/diagram.md` to output Mermaid syntax instead of text instructions
+     4. ✅ Register router in `main.py`
+   - *Frontend Steps*:
+     1. ✅ Add types: `InlineCommandType`, `Expansion` interface, update `PageNotes` with `expansions?: Expansion[]`
+     2. ✅ Add `executeInlineCommand()` to `api/client.ts`
+     3. ✅ Create `hooks/useTextSelection.ts` - detect selection within container, return text + position rect
+     4. ✅ Create `components/SelectionToolbar.tsx` - floating toolbar with 4 command buttons
+     5. ✅ Create `components/MermaidDiagram.tsx` - render Mermaid code to SVG with error fallback
+     6. ✅ Create `components/ExpansionBlock.tsx` - colored container per command type, renders markdown or diagram
+     7. ✅ Update `stores/pdfStore.ts` - add `addExpansion()`, `removeExpansion()`, `getExpansionsForPage()` actions
+     8. ✅ Update `components/NotesPanel.tsx` - integrate selection handling, toolbar, and expansion display
+     9. ✅ Update `pages/StudyPage.tsx` - wire up expansion props to NotesPanel
+   - *Key Files*:
+     - Backend: `schemas.py`, `routers/inline_commands.py` (new), `main.py`, `prompts/inline_commands/diagram.md`
+     - Frontend: `types/index.ts`, `api/client.ts`, `hooks/useTextSelection.ts` (new), `components/SelectionToolbar.tsx` (new), `components/MermaidDiagram.tsx` (new), `components/ExpansionBlock.tsx` (new), `stores/pdfStore.ts`, `components/NotesPanel.tsx`, `pages/StudyPage.tsx`
+   - *Reasoning*: Floating toolbar is intuitive for text transformation. Inline expansions preserve reading context. Storing expansions in `notesCache` reuses existing persistence mechanism. Mermaid provides rich diagram rendering from LLM-generated syntax.
+   - ✅ *Progress (2025-01-03)*: **Implementation complete. Manual testing in progress.**
+     - **Backend**: Added `InlineCommandType` enum and request/response schemas. Created `routers/inline_commands.py` with Gemini structured output. Updated diagram prompt for Mermaid.js syntax.
+     - **Frontend**: Added `mermaid` npm package. Created `useTextSelection` hook using Browser Selection API. Built `SelectionToolbar` (floating, 4 buttons), `MermaidDiagram` (SVG rendering with error fallback), and `ExpansionBlock` (color-coded per command type). Updated `pdfStore` with expansion CRUD actions. Integrated into `NotesPanel` and `StudyPage`.
+     - **Playwright Testing**: Verified text selection triggers toolbar, "Simplify" command calls API successfully, expansion block renders with correct styling and remove button.
+     - **Pending Manual Testing**: Test all 4 commands (elaborate, simplify, analogy, diagram), verify Mermaid diagram rendering, test persistence across page navigation and refresh, test remove expansion functionality.
 
 - [ ] 6. **Quiz Generation & Mastery Tracking**
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.
@@ -283,9 +331,13 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
-- Begin Phase 5: Inline highlight command actions (elaborate, simplify, analogy, diagram).
-- Implement backend endpoint for Phase 6 (Quiz Generation).
-- Phase 7: Consolidated Markdown export (now simpler since notes are already markdown).
+- **Complete Phase 5 Manual Testing**: Test all 4 inline commands with real content.
+  - Verify: Elaborate, Simplify, Analogy commands produce quality markdown output
+  - Verify: Diagram command generates valid Mermaid.js syntax that renders correctly
+  - Verify: Expansions persist across page navigation and browser refresh
+  - Verify: Remove expansion button works correctly
+- Then Phase 6: Quiz Generation & Mastery Tracking.
+- Phase 7: Consolidated Markdown export (simpler since notes are already markdown).
 
 ## Completed Features Summary
 | Phase | Feature | Key Files |
@@ -295,6 +347,8 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 | 3 | Notes Generation API | `routers/notes.py`, `prompts/notes_generation.md` |
 | 4 | Dual-Pane Experience | `StudyPage.tsx`, `PDFViewer.tsx`, `NotesPanel.tsx` |
 | 4.5 | Markdown + Callouts | `MarkdownRenderer.tsx`, `NotesResponse` schema |
+| 4.6 | LaTeX Math Rendering | `MarkdownRenderer.tsx`, `index.css`, `package.json` |
+| 5 | Inline Commands *(testing)* | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `MermaidDiagram.tsx` |
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.

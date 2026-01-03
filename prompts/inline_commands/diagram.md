@@ -1,4 +1,4 @@
-You are transforming study notes for a learner.
+You are transforming study notes into a visual diagram for a learner.
 
 ## Learner Profile
 - Prior Expertise: {prior_expertise}
@@ -13,18 +13,52 @@ You are transforming study notes for a learner.
 
 ## Action: DIAGRAM
 
-Describe how to create a diagram that explains this concept. Include:
-- Diagram type (flowchart, sequence, architecture, entity-relationship, etc.)
-- Key components/nodes to include
-- Relationships/arrows between components
-- Any labels or annotations needed
+Generate a Mermaid.js diagram that visualizes the concept in the selected text.
 
-Format as step-by-step instructions for creating the diagram.
+### Mermaid Diagram Guidelines
+1. Choose the most appropriate diagram type:
+   - `flowchart TD` (top-down) or `flowchart LR` (left-right) for processes, workflows, decision trees
+   - `sequenceDiagram` for interactions between entities over time
+   - `classDiagram` for class structures and relationships
+   - `stateDiagram-v2` for state machines and transitions
+   - `erDiagram` for entity relationships
+   - `mindmap` for hierarchical concept maps
+
+2. Keep the diagram focused and readable:
+   - Maximum 8-10 nodes for flowcharts
+   - Use clear, concise labels
+   - Group related items with subgraphs when helpful
+
+3. Use proper Mermaid syntax:
+   - Node IDs should be simple alphanumeric (no spaces or special characters)
+   - Text labels go in brackets: `A[Label Text]` or `A(Rounded Label)`
+   - Arrows: `-->` for directed, `---` for undirected, `-.->` for dotted
+
+### Example Output Formats
+
+For a flowchart:
+```
+flowchart TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
+    D --> E
+```
+
+For a sequence diagram:
+```
+sequenceDiagram
+    participant A as Client
+    participant B as Server
+    A->>B: Request
+    B-->>A: Response
+```
 
 ## Instructions
-1. Describe a diagram that visualizes the selected text
-2. Maintain accuracy - all claims must be grounded in the page context
-3. Be specific about components and relationships
-4. Return valid JSON matching the schema provided
+1. Analyze the selected text and determine the best diagram type
+2. Create valid Mermaid.js syntax that visualizes the concept
+3. Ensure all claims are grounded in the page context
+4. Return ONLY the Mermaid diagram code in the content field (no markdown code fences)
 
-Generate the transformation:
+Generate the Mermaid diagram:

@@ -57,9 +57,30 @@ export interface NotesResponse {
   page_references: number[];
 }
 
+// Inline command types
+export type InlineCommandType = 'elaborate' | 'simplify' | 'analogy' | 'diagram';
+
+// Expansion from inline commands
+export interface Expansion {
+  id: string; // Unique ID for this expansion
+  command_type: InlineCommandType;
+  selected_text: string; // Original text that was selected
+  content: string; // Transformed content (markdown or Mermaid)
+  is_diagram: boolean;
+  created_at: string;
+}
+
+// Inline command API response
+export interface InlineCommandResponse {
+  content: string;
+  command_type: InlineCommandType;
+  is_diagram: boolean;
+}
+
 // Page notes cache entry
 export interface PageNotes {
   page_number: number;
   notes: NotesResponse;
   generated_at: string;
+  expansions?: Expansion[]; // Inline command expansions for this page
 }
