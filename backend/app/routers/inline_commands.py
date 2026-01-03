@@ -28,25 +28,6 @@ COMMAND_PROMPT_FILES = {
     InlineCommandType.ANALOGY: "analogy.md",
 }
 
-# Mapping from prior_expertise to targeted analogy instruction
-ANALOGY_INSTRUCTIONS = {
-    "Software Engineering": (
-        "Explain this concept using a programming analogy. "
-        "Draw from: functions, classes, APIs, version control, debugging, or code reviews."
-    ),
-    "Data Science/ML": (
-        "Explain this concept using a data science analogy. "
-        "Draw from: models, pipelines, features, training loops, or data preprocessing."
-    ),
-    "Statistics": (
-        "Explain this concept using a statistical analogy. "
-        "Draw from: distributions, sampling, hypothesis testing, confidence intervals, or variance."
-    ),
-    "Domain Novice": (
-        "Explain this concept using an everyday real-world analogy. "
-        "Draw from: cooking, sports, traffic, libraries, or familiar household activities."
-    ),
-}
 
 
 def load_prompt_template(command_type: InlineCommandType) -> str:
@@ -87,11 +68,13 @@ async def execute_inline_command(
         "page_text": request.page_text,
     }
 
-    # Add analogy-specific instruction based on user's expertise
+    # Add analogy-specific instruction based on user's expertise (dynamic, not hardcoded)
     if request.command_type == InlineCommandType.ANALOGY:
-        format_kwargs["analogy_instruction"] = ANALOGY_INSTRUCTIONS.get(
-            request.user_profile.prior_expertise,
-            ANALOGY_INSTRUCTIONS["Domain Novice"],  # fallback
+        format_kwargs["analogy_instruction"] = (
+            f"Create an analogy that explains this concept using examples from the learner's "
+            f"background: {request.user_profile.prior_expertise}. Draw from concepts, tools, "
+            f"processes, or situations that someone with this background would immediately "
+            f"recognize and understand."
         )
 
     # Fill prompt template with request data

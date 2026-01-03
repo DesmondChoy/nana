@@ -11,11 +11,15 @@ import type {
   PrimaryGoal,
 } from '../types';
 
-const EXPERTISE_OPTIONS: PriorExpertise[] = [
-  'Data Science/ML',
+// Suggested expertise options (users can type any value)
+const EXPERTISE_SUGGESTIONS = [
   'Software Engineering',
+  'Data Science/ML',
   'Statistics',
-  'Domain Novice',
+  'Healthcare/Nursing',
+  'Finance/Accounting',
+  'Education/Teaching',
+  'Law',
 ];
 
 const MATH_OPTIONS: MathComfort[] = [
@@ -30,10 +34,23 @@ const DETAIL_OPTIONS: DetailLevel[] = [
   'Comprehensive (textbook depth)',
 ];
 
-const GOAL_OPTIONS: PrimaryGoal[] = [
-  'Exam prep',
-  'Deep understanding',
-  'Quick reference',
+// Primary goal options with descriptions
+const GOAL_OPTIONS_WITH_DESCRIPTIONS = [
+  {
+    value: 'Exam prep' as PrimaryGoal,
+    label: 'Exam prep',
+    description: 'Testable facts, warnings for misconceptions, memory hooks',
+  },
+  {
+    value: 'Deep understanding' as PrimaryGoal,
+    label: 'Deep understanding',
+    description: 'Focus on "why" over "what", conceptual depth, thought-provoking questions',
+  },
+  {
+    value: 'Quick reference' as PrimaryGoal,
+    label: 'Quick reference',
+    description: 'Scannable format, precise terminology, easy navigation',
+  },
 ];
 
 // Checkmark icon for completed fields
@@ -87,6 +104,147 @@ function FormField({ label, value, onChange, options, placeholder }: FormFieldPr
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+// Combobox: text input with dropdown suggestions
+interface ComboboxFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  suggestions: string[];
+  placeholder: string;
+  hint?: string;
+}
+
+function ComboboxField({ label, value, onChange, suggestions, placeholder, hint }: ComboboxFieldProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+  const isComplete = Boolean(value.trim());
+
+  // Filter suggestions based on input
+  const filteredSuggestions = suggestions.filter((s) =>
+    s.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    onChange(newValue);
+    setIsOpen(true);
+  };
+
+  const handleSelect = (suggestion: string) => {
+    setInputValue(suggestion);
+    onChange(suggestion);
+    setIsOpen(false);
+  };
+
+  const handleBlur = () => {
+    // Delay closing to allow click on suggestion
+    setTimeout(() => setIsOpen(false), 150);
+  };
+
+  return (
+    <div className="relative">
+      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {label}
+        {isComplete && (
+          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/50">
+            <CheckIcon className="w-3 h-3 text-green-600 dark:text-green-400" />
+          </span>
+        )}
+      </label>
+      <input
+        type="text"
+        className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2.5
+                   bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                   placeholder-gray-400 dark:placeholder-gray-500
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                   transition-colors duration-150"
+        value={inputValue}
+        onChange={handleInputChange}
+        onFocus={() => setIsOpen(true)}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+      />
+      {hint && (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+      )}
+      {isOpen && filteredSuggestions.length > 0 && (
+        <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-48 overflow-auto">
+          {filteredSuggestions.map((suggestion) => (
+            <li
+              key={suggestion}
+              className="px-3 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-900 dark:text-gray-100"
+              onMouseDown={() => handleSelect(suggestion)}
+            >
+              {suggestion}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Radio group with descriptions
+interface RadioOption {
+  value: string;
+  label: string;
+  description: string;
+}
+
+interface RadioGroupFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: RadioOption[];
+}
+
+function RadioGroupField({ label, value, onChange, options }: RadioGroupFieldProps) {
+  const isComplete = Boolean(value);
+
+  return (
+    <div className="relative">
+      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        {label}
+        {isComplete && (
+          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/50">
+            <CheckIcon className="w-3 h-3 text-green-600 dark:text-green-400" />
+          </span>
+        )}
+      </label>
+      <div className="space-y-2">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors duration-150
+              ${value === option.value
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+              }`}
+          >
+            <input
+              type="radio"
+              name={label}
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+              className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
+                {option.label}
+              </span>
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                {option.description}
+              </p>
+            </div>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
@@ -243,14 +401,15 @@ export default function UploadPage() {
             </div>
 
             {/* Profile Fields */}
-            <FormField
+            <ComboboxField
               label="Prior Expertise"
               value={formData.prior_expertise || ''}
               onChange={(value) =>
-                setFormData({ ...formData, prior_expertise: value as PriorExpertise })
+                setFormData({ ...formData, prior_expertise: value })
               }
-              options={EXPERTISE_OPTIONS}
-              placeholder="Select your background..."
+              suggestions={EXPERTISE_SUGGESTIONS}
+              placeholder="e.g., Chef, Nurse, Teacher..."
+              hint="Your background shapes how we explain concepts to you"
             />
 
             <FormField
@@ -273,14 +432,13 @@ export default function UploadPage() {
               placeholder="Select desired verbosity..."
             />
 
-            <FormField
+            <RadioGroupField
               label="Primary Goal"
               value={formData.primary_goal || ''}
               onChange={(value) =>
                 setFormData({ ...formData, primary_goal: value as PrimaryGoal })
               }
-              options={GOAL_OPTIONS}
-              placeholder="Select your learning goal..."
+              options={GOAL_OPTIONS_WITH_DESCRIPTIONS}
             />
 
             {/* Additional Context */}
@@ -295,7 +453,7 @@ export default function UploadPage() {
                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                            transition-colors duration-150"
                 rows={2}
-                placeholder="e.g., NLP researcher, new to signal processing"
+                placeholder="e.g., Bullet points only, Mandarin speaker learning English terms, Focus on practical applications, Skip historical context..."
                 value={additionalContext}
                 onChange={(e) => setAdditionalContext(e.target.value)}
               />

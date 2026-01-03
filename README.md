@@ -7,10 +7,13 @@
 - 📄 **Smart PDF Processing** - Two-phase pipeline extracts content once, generates notes efficiently
 - 🧮 **LaTeX Math Rendering** - Displays mathematical notation beautifully using KaTeX
 - 📝 **Markdown Notes** - Rich formatting with Obsidian-style callouts (note, warning, tip, etc.)
+- 🔍 **Inline Commands** - Select text to elaborate, simplify, or get analogies tailored to your background
+- 📤 **Export Notes** - Download all generated notes as a single markdown file with table of contents
+- 🌓 **Dark Mode** - Toggle theme with system preference detection
+- ↔️ **Resizable Layout** - Drag divider to adjust PDF/notes split (double-click to reset)
 - ⌨️ **Keyboard Navigation** - Arrow keys for quick page navigation while studying
 - 🔄 **Error Recovery** - Automatic retry for failed note generation
 - 🎯 **Personalized Learning** - Adapts to your study level, learning style, and topic mastery
-- 🔍 **Session-based Logging** - Debug logs grouped by study session for easier troubleshooting
 
 ## Quick Start
 

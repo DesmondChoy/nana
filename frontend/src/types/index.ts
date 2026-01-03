@@ -7,11 +7,8 @@ export interface UserProfile {
   additional_context?: string;
 }
 
-export type PriorExpertise =
-  | 'Data Science/ML'
-  | 'Software Engineering'
-  | 'Statistics'
-  | 'Domain Novice';
+// Open-ended string - users can type any expertise
+export type PriorExpertise = string;
 
 export type MathComfort =
   | 'No equations (words/intuition only)'
