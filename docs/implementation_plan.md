@@ -1,8 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 5 implemented. Manual testing in progress.
+> **Current Status**: Phase 5 complete ✅. Visual selection bug fixed.
 >
-> **Next Up**: Complete Phase 5 manual testing, then Phase 6 (Quiz Generation).
+> **Next Up**: Phase 6 (Quiz Generation & Mastery Tracking).
 
 ## Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -257,7 +257,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - **Solution**: Only use text extraction for pattern matching; pass original React children to CalloutBlock to preserve KaTeX rendering. Added preprocessing to ensure callout content becomes separate React children.
      - **Verification**: Tested with Playwright—θ, f(x), R², h: X → Y, ∫ L(y,h(x))dP(x,y) all render correctly.
 
-- [ ] 5. **Inline Highlight Command Actions**
+- [x] 5. **Inline Highlight Command Actions**
    - *Libraries*: Browser Selection API, `mermaid` for diagram rendering.
    - *UX Decisions*:
      - **Trigger**: Floating toolbar near text selection (Medium/Notion style)
@@ -283,26 +283,18 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - Backend: `schemas.py`, `routers/inline_commands.py` (new), `main.py`, `prompts/inline_commands/diagram.md`
      - Frontend: `types/index.ts`, `api/client.ts`, `hooks/useTextSelection.ts` (new), `components/SelectionToolbar.tsx` (new), `components/MermaidDiagram.tsx` (new), `components/ExpansionBlock.tsx` (new), `stores/pdfStore.ts`, `components/NotesPanel.tsx`, `pages/StudyPage.tsx`
    - *Reasoning*: Floating toolbar is intuitive for text transformation. Inline expansions preserve reading context. Storing expansions in `notesCache` reuses existing persistence mechanism. Mermaid provides rich diagram rendering from LLM-generated syntax.
-   - ✅ *Progress (2025-01-03)*: **Implementation complete. Known visual bug with selection highlight.**
+   - ✅ *Done (2025-01-03)*: **Phase 5 complete. All features working including visual selection highlight.**
      - **Backend**: Added `InlineCommandType` enum and request/response schemas. Created `routers/inline_commands.py` with Gemini structured output. Updated diagram prompt for Mermaid.js syntax.
      - **Frontend**: Added `mermaid` npm package. Created `useTextSelection` hook using Browser Selection API. Built `SelectionToolbar` (floating, 4 buttons), `MermaidDiagram` (SVG rendering with error fallback), and `ExpansionBlock` (color-coded per command type). Updated `pdfStore` with expansion CRUD actions. Integrated into `NotesPanel` and `StudyPage`.
-     - **Playwright Testing**: Verified text selection triggers toolbar, "Simplify" command calls API successfully, expansion block renders with correct styling and remove button.
-     - **Functional Status**: ✅ Core flow works - select text → toolbar appears → click command → expansion renders. Commands execute correctly.
-   - ⚠️ *Known Issue (2025-01-03)*: **Visual selection highlight disappears on mouseup**
-     - **Symptom**: Yellow text highlight visible while dragging, but disappears when mouse is released. Toolbar appears correctly, indicating the selection is detected—only the *visual* highlight is lost.
-     - **Attempted Fixes** (none resolved the issue):
-       1. Simplified `useTextSelection` hook - removed `mousedown` handler that was interfering with selection
-       2. Added `::selection` CSS with yellow background (`bg-yellow-300`) - highlight visible during drag
-       3. Made toolbar non-interactive with selection: `select-none`, `onMouseDown.preventDefault()`, `tabIndex={-1}`
-       4. Changed toolbar from conditional rendering to always-rendered with CSS visibility (`opacity-0`/`pointer-events-none`) to avoid DOM mutations
-     - **Root Cause Hypothesis**: React's state update cycle (setting selection state → re-render) may be causing the browser to clear its native selection. The toolbar appearing proves React state is correct, but the browser's visual selection is lost during the render cycle.
-     - **Potential Future Fixes**:
-       1. **React Portal**: Render toolbar outside the notes container entirely, reducing DOM impact
-       2. **Deferred state update**: Use `requestAnimationFrame` or longer `setTimeout` to delay React state update until after browser selection stabilizes
-       3. **Manual selection restoration**: After state update, programmatically re-apply the selection using stored range data
-       4. **CSS investigation**: Check if `prose` class or markdown renderer styles have `user-select` rules interfering
-       5. **Browser-specific testing**: Issue may be browser-specific; test in Firefox/Safari
-     - **Workaround**: Feature is fully functional despite visual bug—users can select text, toolbar appears, and commands work. The only UX impact is not seeing which text is selected after mouseup.
+     - **Playwright Testing**: Verified text selection triggers toolbar, all 4 commands call API successfully, expansion blocks render with correct styling and remove button. Visual selection highlight persists after mouseup.
+   - ✅ *Bug Fix (2025-01-03)*: **Visual selection highlight now persists after mouseup**
+     - **Symptom**: Yellow text highlight was visible while dragging, but disappeared when mouse was released. Toolbar appeared correctly, indicating the selection was detected—only the *visual* highlight was lost.
+     - **Root Cause**: Cloning a `Range` object stores references to specific DOM text nodes. When React re-renders (triggered by `setSelection()`), those text nodes are replaced with new nodes. The cloned Range then points to disconnected/orphaned nodes, causing `addRange()` to create a collapsed (empty) selection instead of restoring the original highlight.
+     - **Solution**: Instead of storing DOM node references via Range cloning, store **character offsets** within the container. After React's re-render creates new DOM nodes, reconstruct the Range by walking through text nodes to find the correct positions. Key functions added to `useTextSelection.ts`:
+       - `getCharacterOffset(container, targetNode, targetOffset)` - Converts DOM node + offset → character position
+       - `getNodeAndOffsetFromCharOffset(container, charOffset)` - Converts character position → DOM node + offset
+     - **Why Range cloning failed**: React's reconciliation replaces DOM nodes even when content is identical. A cloned Range references the OLD nodes, which become disconnected after re-render. Character offsets are DOM-node-agnostic and survive React's reconciliation.
+     - **Verification**: Tested with Playwright—`hasSelection: true` and `selectedText` correctly populated after mouseup. Screenshot confirms yellow highlight visible.
 
 - [ ] 6. **Quiz Generation & Mastery Tracking**
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.
@@ -346,15 +338,14 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
-- **Phase 5 Status**: Core functionality complete with known visual bug.
-  - ✅ Verified: Text selection triggers toolbar reliably (after hook fixes)
-  - ✅ Verified: All 4 commands (Elaborate, Simplify, Analogy, Diagram) call API successfully
-  - ✅ Verified: Expansion blocks render with correct styling
-  - ⚠️ Known Bug: Visual selection highlight disappears on mouseup (see Known Issue above)
+- **Phase 5 Status**: ✅ Complete!
+  - ✅ Text selection triggers toolbar reliably
+  - ✅ Visual selection highlight persists after mouseup (bug fixed 2025-01-03)
+  - ✅ All 4 commands (Elaborate, Simplify, Analogy, Diagram) call API successfully
+  - ✅ Expansion blocks render with correct styling
   - 🔲 Not yet tested: Mermaid diagram rendering quality, persistence across navigation/refresh, remove button
-- **Optional**: Fix visual selection bug before proceeding (see Potential Future Fixes)
-- Then Phase 6: Quiz Generation & Mastery Tracking.
-- Phase 7: Consolidated Markdown export (simpler since notes are already markdown).
+- **Next**: Phase 6 - Quiz Generation & Mastery Tracking
+- **Then**: Phase 7 - Consolidated Markdown export (simpler since notes are already markdown)
 
 ## Completed Features Summary
 | Phase | Feature | Key Files |
@@ -365,7 +356,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 | 4 | Dual-Pane Experience | `StudyPage.tsx`, `PDFViewer.tsx`, `NotesPanel.tsx` |
 | 4.5 | Markdown + Callouts | `MarkdownRenderer.tsx`, `NotesResponse` schema |
 | 4.6 | LaTeX Math Rendering | `MarkdownRenderer.tsx`, `index.css`, `package.json` |
-| 5 | Inline Commands *(testing)* | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `MermaidDiagram.tsx` |
+| 5 | Inline Commands | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `MermaidDiagram.tsx`, `useTextSelection.ts` |
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.

@@ -1,18 +1,72 @@
-import { useState, useEffect, useCallback, type RefObject } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, type RefObject } from 'react';
 
 export interface TextSelection {
   text: string;
   rect: DOMRect;
 }
 
+// Internal interface that includes data for selection restoration
+interface SelectionState {
+  text: string;
+  rect: DOMRect;
+  // Store character offsets for reconstruction instead of Range (which becomes invalid after React re-render)
+  startOffset: number;
+  endOffset: number;
+}
+
+/**
+ * Get character offset of a point within a container element.
+ * Walks through all text nodes and calculates cumulative offset.
+ */
+function getCharacterOffset(container: Node, targetNode: Node, targetOffset: number): number {
+  let offset = 0;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+
+  let node = walker.nextNode();
+  while (node) {
+    if (node === targetNode) {
+      return offset + targetOffset;
+    }
+    offset += node.textContent?.length || 0;
+    node = walker.nextNode();
+  }
+  return offset;
+}
+
+/**
+ * Find text node and offset for a character position within a container.
+ */
+function getNodeAndOffsetFromCharOffset(container: Node, charOffset: number): { node: Node; offset: number } | null {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+  let currentOffset = 0;
+
+  let node = walker.nextNode();
+  while (node) {
+    const length = node.textContent?.length || 0;
+    if (currentOffset + length >= charOffset) {
+      return { node, offset: charOffset - currentOffset };
+    }
+    currentOffset += length;
+    node = walker.nextNode();
+  }
+  return null;
+}
+
 /**
  * Hook to detect text selection within a container element.
  * Returns the selected text and its bounding rectangle for positioning a toolbar.
+ *
+ * Uses useLayoutEffect to restore the browser selection after React re-renders,
+ * preventing the visual highlight from disappearing.
  */
 export function useTextSelection(
   containerRef: RefObject<HTMLElement | null>
 ): TextSelection | null {
-  const [selection, setSelection] = useState<TextSelection | null>(null);
+  const [selection, setSelection] = useState<SelectionState | null>(null);
+  // Track if we need to restore selection after render
+  const shouldRestoreRef = useRef(false);
+  // Prevent selectionchange handler from clearing selection during restoration
+  const isRestoringRef = useRef(false);
 
   const handleSelectionChange = useCallback(() => {
     const windowSelection = window.getSelection();
@@ -53,11 +107,65 @@ export function useTextSelection(
     // Get the bounding rect of the selection
     const rect = range.getBoundingClientRect();
 
+    // Calculate character offsets for reconstruction after React re-render
+    // This is more reliable than cloning the Range, which references specific DOM nodes
+    const startOffset = getCharacterOffset(container, range.startContainer, range.startOffset);
+    const endOffset = getCharacterOffset(container, range.endContainer, range.endOffset);
+
+    // Mark that we need to restore the selection after render
+    shouldRestoreRef.current = true;
+    // Prevent selectionchange handler from clearing during state update and restoration
+    isRestoringRef.current = true;
+
     setSelection({
       text: selectedText,
       rect,
+      startOffset,
+      endOffset,
     });
   }, [containerRef]);
+
+  // Restore the selection after React's DOM updates but before browser paint
+  // This prevents the visual highlight from disappearing during re-render
+  useLayoutEffect(() => {
+    if (selection && shouldRestoreRef.current) {
+      shouldRestoreRef.current = false;
+
+      const container = containerRef.current;
+      const windowSelection = window.getSelection();
+
+      if (container && windowSelection) {
+        try {
+          // Reconstruct the selection using character offsets
+          // This works even after React replaces DOM nodes during re-render
+          const startPoint = getNodeAndOffsetFromCharOffset(container, selection.startOffset);
+          const endPoint = getNodeAndOffsetFromCharOffset(container, selection.endOffset);
+
+          if (startPoint && endPoint) {
+            // Prevent selectionchange handler from clearing during restoration
+            isRestoringRef.current = true;
+
+            const range = document.createRange();
+            range.setStart(startPoint.node, startPoint.offset);
+            range.setEnd(endPoint.node, endPoint.offset);
+
+            windowSelection.removeAllRanges();
+            windowSelection.addRange(range);
+
+            // Use setTimeout to clear the flag after the selectionchange event fires
+            setTimeout(() => {
+              isRestoringRef.current = false;
+            }, 0);
+          } else {
+            isRestoringRef.current = false;
+          }
+        } catch {
+          // Selection restoration failed - let it clear naturally
+          isRestoringRef.current = false;
+        }
+      }
+    }
+  }, [selection, containerRef]);
 
   useEffect(() => {
     // Handle mouseup - this is when a selection is finalized after click-and-drag
@@ -72,7 +180,13 @@ export function useTextSelection(
     // 1. User makes a keyboard selection (Shift+arrows)
     // 2. Selection is cleared (collapsed)
     // 3. During mouse drag (intermediate events - we ignore these)
+    // 4. When we restore selection in useLayoutEffect (ignore these)
     const handleSelectionChangeEvent = () => {
+      // Skip if we're in the middle of restoring the selection
+      if (isRestoringRef.current) {
+        return;
+      }
+
       const windowSelection = window.getSelection();
 
       // If selection is collapsed (cleared), update state to hide toolbar
@@ -94,8 +208,8 @@ export function useTextSelection(
     };
   }, [handleSelectionChange]);
 
-  // Return selection with a clear method
-  return selection;
+  // Return selection without the internal range property
+  return selection ? { text: selection.text, rect: selection.rect } : null;
 }
 
 /**
