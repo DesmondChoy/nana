@@ -7,6 +7,8 @@ import ThemeToggle from '../components/ThemeToggle';
 import { generateNotes, logCacheHits } from '../api/client';
 import { generateMarkdownExport, downloadMarkdown, getExportFilename } from '../utils';
 import { useToast } from '../hooks/useToast';
+import { useResizablePanes } from '../hooks/useResizablePanes';
+import ResizeDivider from '../components/ResizeDivider';
 
 export default function StudyPage() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
@@ -39,6 +41,15 @@ export default function StudyPage() {
 
   // Mobile tab state
   const [mobileActiveTab, setMobileActiveTab] = useState<'pdf' | 'notes'>('notes');
+
+  // Resizable panes for desktop layout
+  const {
+    leftWidthPercent,
+    isDragging,
+    handleMouseDown: handleDividerMouseDown,
+    handleDoubleClick: handleDividerDoubleClick,
+    containerRef: resizableContainerRef,
+  } = useResizablePanes();
 
   // Eager sequential notes generation
   useEffect(() => {
@@ -391,9 +402,15 @@ export default function StudyPage() {
         }}
       >
         {/* Desktop Layout */}
-        <div className="hidden md:flex flex-1">
+        <div
+          ref={resizableContainerRef}
+          className={`hidden md:flex flex-1 ${isDragging ? 'select-none' : ''}`}
+        >
           {/* Left Pane - PDF Viewer */}
-          <div className="w-1/2 bg-gray-200 dark:bg-gray-950 overflow-hidden border-r border-gray-300 dark:border-gray-700">
+          <div
+            className="bg-gray-200 dark:bg-gray-950 overflow-hidden"
+            style={{ width: `${leftWidthPercent}%` }}
+          >
             <PDFViewer
               pdfUrl={pdfFileUrl}
               totalPages={parsedPDF.total_pages}
@@ -402,8 +419,15 @@ export default function StudyPage() {
             />
           </div>
 
+          {/* Resizable Divider */}
+          <ResizeDivider
+            onMouseDown={handleDividerMouseDown}
+            onDoubleClick={handleDividerDoubleClick}
+            isDragging={isDragging}
+          />
+
           {/* Right Pane - Notes */}
-          <div className="w-1/2 bg-white dark:bg-gray-800 overflow-auto">
+          <div className="flex-1 bg-white dark:bg-gray-800 overflow-auto">
             <NotesPanel
               pageNumber={currentPage}
               notes={currentNotes?.notes ?? null}

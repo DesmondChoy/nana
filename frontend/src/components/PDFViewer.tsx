@@ -121,7 +121,7 @@ export default function PDFViewer({
 
         {/* Zoom controls */}
         {!isLoading && !error && (
-          <div className="fixed bottom-20 right-4 sm:right-8 flex items-center gap-1 sm:gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-1.5 sm:p-2">
+          <div className="fixed bottom-20 left-4 md:left-24 flex items-center gap-1 sm:gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-1.5 sm:p-2">
             <button
               onClick={() => setPageWidth((w) => Math.max(300, w - 100))}
               className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 px-3 py-2 text-sm font-medium rounded-md
