@@ -16,6 +16,7 @@ interface NotesPanelProps {
   expansions?: Expansion[];
   onAddExpansion?: (selectedText: string, response: { content: string; command_type: InlineCommandType }) => void;
   onRemoveExpansion?: (expansionId: string) => void;
+  onUpdateExpansion?: (expansionId: string, selectedText: string, content: string) => void;
   pageContent?: PageContent;
   userProfile?: UserProfile;
   sessionId?: string;
@@ -90,6 +91,7 @@ export default function NotesPanel({
   expansions = [],
   onAddExpansion,
   onRemoveExpansion,
+  onUpdateExpansion,
   pageContent,
   userProfile,
   sessionId,
@@ -325,9 +327,16 @@ export default function NotesPanel({
             <ExpansionBlock
               key={expansion.id}
               expansion={expansion}
+              isEditMode={isEditMode}
               onRemove={
                 onRemoveExpansion
                   ? () => onRemoveExpansion(expansion.id)
+                  : undefined
+              }
+              onUpdate={
+                onUpdateExpansion
+                  ? (selectedText, content) =>
+                      onUpdateExpansion(expansion.id, selectedText, content)
                   : undefined
               }
             />

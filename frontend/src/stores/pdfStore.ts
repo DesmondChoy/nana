@@ -82,6 +82,7 @@ interface PDFState {
   // Expansion actions
   addExpansion: (pageNumber: number, selectedText: string, response: InlineCommandResponse) => void;
   removeExpansion: (pageNumber: number, expansionId: string) => void;
+  updateExpansion: (pageNumber: number, expansionId: string, selectedText: string, content: string) => void;
   getExpansionsForPage: (pageNumber: number) => Expansion[];
   // Note editing
   updateNotesMarkdown: (pageNumber: number, markdown: string) => void;
@@ -315,6 +316,26 @@ export const usePDFStore = create<PDFState>()(
                 ...existingNotes,
                 expansions: existingNotes.expansions.filter(
                   (exp) => exp.id !== expansionId
+                ),
+              },
+            },
+          };
+        }),
+
+      updateExpansion: (pageNumber, expansionId, selectedText, content) =>
+        set((state) => {
+          const existingNotes = state.notesCache[pageNumber];
+          if (!existingNotes || !existingNotes.expansions) return state;
+
+          return {
+            notesCache: {
+              ...state.notesCache,
+              [pageNumber]: {
+                ...existingNotes,
+                expansions: existingNotes.expansions.map((exp) =>
+                  exp.id === expansionId
+                    ? { ...exp, selected_text: selectedText, content }
+                    : exp
                 ),
               },
             },

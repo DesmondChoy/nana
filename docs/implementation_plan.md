@@ -303,6 +303,21 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
        - `getNodeAndOffsetFromCharOffset(container, charOffset)` - Converts character position → DOM node + offset
      - **Why Range cloning failed**: React's reconciliation replaces DOM nodes even when content is identical. A cloned Range references the OLD nodes, which become disconnected after re-render. Character offsets are DOM-node-agnostic and survive React's reconciliation.
      - **Verification**: Tested with Playwright—`hasSelection: true` and `selectedText` correctly populated after mouseup. Screenshot confirms yellow highlight visible.
+   - ✅ *Enhancement (2025-01-04)*: **Editable Expansions in Global Edit Mode**
+     - **Feature**: When clicking the edit button (pencil icon), both main notes AND all expansions become editable as raw markdown textareas.
+     - **Implementation**:
+       - Added `updateExpansion(pageNumber, expansionId, selectedText, content)` action to `pdfStore.ts`
+       - Updated `ExpansionBlock.tsx` with `isEditMode` and `onUpdate` props, local state for `editedText`, and 500ms debounced save
+       - Updated `NotesPanel.tsx` to pass `isEditMode` and `onUpdateExpansion` callback to each ExpansionBlock
+       - Wired up `updateExpansion` in `StudyPage.tsx` for both desktop and mobile NotesPanel instances
+     - **Edit Format**: Single textarea per expansion with `---` separator between original quote and content. Format: `selected_text\n---\nexpansion_content`
+     - **Edge Cases Handled**:
+       - Separator deleted: Treats entire text as content, preserves original `selected_text`
+       - Page change: Edit mode resets (existing behavior)
+       - Empty content: Allowed - empty strings saved
+     - **No Backend Changes**: Editing is purely frontend state manipulation. The inline command prompts and backend router only handle creation, not editing. Export utility (`exportMarkdown.ts`) automatically includes edited expansions since it reads from the same store.
+     - **Verification**: Tested with Playwright MCP - edit mode toggle, expansion textarea rendering, content editing, persistence across page navigation, and persistence across browser refresh (localStorage).
+     - **Key Files**: `pdfStore.ts`, `ExpansionBlock.tsx`, `NotesPanel.tsx`, `StudyPage.tsx`
 
 - [ ] 6. **Quiz Generation & Mastery Tracking**
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.

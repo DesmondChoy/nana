@@ -30,6 +30,7 @@ export default function StudyPage() {
   const clearPageFailure = usePDFStore((state) => state.clearPageFailure);
   const addExpansion = usePDFStore((state) => state.addExpansion);
   const removeExpansion = usePDFStore((state) => state.removeExpansion);
+  const updateExpansion = usePDFStore((state) => state.updateExpansion);
   const getExpansionsForPage = usePDFStore((state) => state.getExpansionsForPage);
   const updateNotesMarkdown = usePDFStore((state) => state.updateNotesMarkdown);
 
@@ -442,6 +443,9 @@ export default function StudyPage() {
               onRemoveExpansion={(expansionId) =>
                 removeExpansion(currentPage, expansionId)
               }
+              onUpdateExpansion={(expansionId, selectedText, content) =>
+                updateExpansion(currentPage, expansionId, selectedText, content)
+              }
               pageContent={currentPageContent}
               userProfile={profile}
               sessionId={parsedPDF.session_id}
@@ -477,6 +481,9 @@ export default function StudyPage() {
                   }
                   onRemoveExpansion={(expansionId) =>
                     removeExpansion(currentPage, expansionId)
+                  }
+                  onUpdateExpansion={(expansionId, selectedText, content) =>
+                    updateExpansion(currentPage, expansionId, selectedText, content)
                   }
                   pageContent={currentPageContent}
                   userProfile={profile}
