@@ -7,16 +7,42 @@ import type {
   InlineCommandType,
   InlineCommandResponse,
 } from '../types';
+import { useApiKeyStore } from '../stores/apiKeyStore';
 
-const API_BASE = 'http://localhost:8000/api';
+// Use environment variable for API base, fallback to localhost for development
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
+
+// Helper to get headers with API key
+function getHeaders(contentType?: string): HeadersInit {
+  const apiKey = useApiKeyStore.getState().apiKey;
+  const headers: HeadersInit = {};
+
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+
+  return headers;
+}
 
 // Upload and parse PDF
 export async function uploadPDF(file: File): Promise<ParsedPDF> {
   const formData = new FormData();
   formData.append('file', file);
 
+  // Note: Don't set Content-Type for FormData - browser sets it with boundary
+  const apiKey = useApiKeyStore.getState().apiKey;
+  const headers: HeadersInit = {};
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+
   const response = await fetch(`${API_BASE}/upload`, {
     method: 'POST',
+    headers,
     body: formData,
   });
 
@@ -43,9 +69,7 @@ export interface GenerateNotesParams {
 export async function generateNotes(params: GenerateNotesParams): Promise<NotesResponse> {
   const response = await fetch(`${API_BASE}/notes`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getHeaders('application/json'),
     body: JSON.stringify({
       current_page: params.currentPage,
       previous_page: params.previousPage ?? null,
@@ -77,9 +101,7 @@ export async function logCacheHits(params: LogCacheHitsParams): Promise<void> {
   // Fire and forget - don't block on this
   fetch(`${API_BASE}/debug/cache-hits`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getHeaders('application/json'),
     body: JSON.stringify({
       document_name: params.documentName,
       cached_pages: params.cachedPages,
@@ -107,9 +129,7 @@ export async function executeInlineCommand(
 ): Promise<InlineCommandResponse> {
   const response = await fetch(`${API_BASE}/inline-command`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getHeaders('application/json'),
     body: JSON.stringify({
       command_type: params.commandType,
       selected_text: params.selectedText,
@@ -124,6 +144,23 @@ export async function executeInlineCommand(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Command failed' }));
     throw new Error(error.detail || 'Failed to execute inline command');
+  }
+
+  return response.json();
+}
+
+// Validate API key
+export async function validateApiKey(apiKey: string): Promise<{ valid: boolean; message: string }> {
+  const response = await fetch(`${API_BASE}/validate-key`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Validation failed' }));
+    throw new Error(error.detail || 'Failed to validate API key');
   }
 
   return response.json();

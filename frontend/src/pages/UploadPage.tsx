@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useUserStore, usePDFStore } from '../stores';
+import { useApiKeyStore } from '../stores/apiKeyStore';
 import { uploadPDF } from '../api/client';
 import StorageWarning from '../components/StorageWarning';
 import ThemeToggle from '../components/ThemeToggle';
+import ApiKeyInput from '../components/ApiKeyInput';
 import type {
   UserProfile,
   PriorExpertise,
@@ -259,6 +261,9 @@ export default function UploadPage() {
   const notesCache = usePDFStore((state) => state.notesCache);
   const clearNotesCache = usePDFStore((state) => state.clearNotesCache);
 
+  // API Key state
+  const hasValidApiKey = useApiKeyStore((state) => state.apiKey && state.isValidated);
+
   const cachedPagesCount = Object.keys(notesCache).length;
 
   const [formData, setFormData] = useState<Partial<UserProfile>>(existingProfile || {});
@@ -293,10 +298,10 @@ export default function UploadPage() {
     formData.primary_goal,
   ].filter(Boolean).length;
 
-  const canSubmit = isProfileComplete && selectedFile && !isSubmitting;
+  const canSubmit = isProfileComplete && selectedFile && !isSubmitting && hasValidApiKey;
 
   const handleSubmit = useCallback(() => {
-    if (!isProfileComplete || !selectedFile || isSubmitting) return;
+    if (!isProfileComplete || !selectedFile || isSubmitting || !hasValidApiKey) return;
 
     const profile: UserProfile = {
       prior_expertise: formData.prior_expertise!,
@@ -309,7 +314,7 @@ export default function UploadPage() {
     setIsSubmitting(true);
     setProfile(profile);
     handleUpload(selectedFile);
-  }, [formData, additionalContext, selectedFile, setProfile, handleUpload, isProfileComplete, isSubmitting]);
+  }, [formData, additionalContext, selectedFile, setProfile, handleUpload, isProfileComplete, isSubmitting, hasValidApiKey]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -361,6 +366,11 @@ export default function UploadPage() {
           {/* Storage Warning */}
           <div className="mb-4">
             <StorageWarning />
+          </div>
+
+          {/* API Key Input */}
+          <div className="mb-4">
+            <ApiKeyInput />
           </div>
 
           {/* Cached Session Banner */}

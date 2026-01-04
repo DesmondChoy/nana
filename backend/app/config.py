@@ -2,14 +2,16 @@
 Application configuration loaded from environment variables.
 
 Uses pydantic-settings for validation and type coercion.
-All sensitive values (API keys) should be set via .env file.
+API keys can come from:
+1. X-API-Key header (for BYOK in production)
+2. .env file (for local development)
 """
 
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 from google import genai
 from pydantic_settings import BaseSettings
 
@@ -17,7 +19,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
-    # Gemini API
+    # Gemini API - optional from .env (can be provided via header instead)
     google_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
 
@@ -38,15 +40,29 @@ def get_settings() -> Settings:
 
 
 def get_gemini_client(
-    settings: Annotated[Settings, Depends(get_settings)]
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_api_key: Annotated[str | None, Header()] = None,
 ) -> genai.Client:
     """
     Dependency that returns a configured Gemini Client.
-    Validates that the API key is present.
+
+    Priority:
+    1. X-API-Key header (BYOK for production)
+    2. GOOGLE_API_KEY from .env (local development)
+    3. Error if neither available
     """
-    if not settings.google_api_key:
+    # Priority 1: Header-provided key (BYOK)
+    api_key = x_api_key
+
+    # Priority 2: .env key (local dev fallback)
+    if not api_key:
+        api_key = settings.google_api_key
+
+    # Neither available - error
+    if not api_key:
         raise HTTPException(
-            status_code=500, 
-            detail="GOOGLE_API_KEY not configured in .env file"
+            status_code=401,
+            detail="API key required. Please provide your Gemini API key."
         )
-    return genai.Client(api_key=settings.google_api_key)
+
+    return genai.Client(api_key=api_key)
