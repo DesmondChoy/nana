@@ -19,7 +19,7 @@ from app.debug import DebugLogger
 router = APIRouter()
 
 # Resolve prompts directory once at module load
-PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts" / "inline_commands"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts" / "inline_commands"
 
 # Mapping from command type to prompt file
 COMMAND_PROMPT_FILES = {

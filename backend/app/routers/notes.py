@@ -20,7 +20,7 @@ from app.debug import DebugLogger
 router = APIRouter()
 
 # Resolve prompts directory once at module load
-PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 
 def load_prompt_template(filename: str) -> str:
