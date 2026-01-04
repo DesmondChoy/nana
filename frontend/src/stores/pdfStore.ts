@@ -83,6 +83,8 @@ interface PDFState {
   addExpansion: (pageNumber: number, selectedText: string, response: InlineCommandResponse) => void;
   removeExpansion: (pageNumber: number, expansionId: string) => void;
   getExpansionsForPage: (pageNumber: number) => Expansion[];
+  // Note editing
+  updateNotesMarkdown: (pageNumber: number, markdown: string) => void;
 }
 
 // Check if cached notes are in the old format (sections-based) vs new format (markdown-based)
@@ -323,6 +325,21 @@ export const usePDFStore = create<PDFState>()(
         const notes = get().notesCache[pageNumber];
         return notes?.expansions || [];
       },
+
+      updateNotesMarkdown: (pageNumber, markdown) =>
+        set((state) => {
+          const existingNotes = state.notesCache[pageNumber];
+          if (!existingNotes) return state;
+          return {
+            notesCache: {
+              ...state.notesCache,
+              [pageNumber]: {
+                ...existingNotes,
+                notes: { ...existingNotes.notes, markdown },
+              },
+            },
+          };
+        }),
     }),
     {
       name: 'nana-pdf-storage',

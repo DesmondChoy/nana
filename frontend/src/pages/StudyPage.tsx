@@ -31,6 +31,7 @@ export default function StudyPage() {
   const addExpansion = usePDFStore((state) => state.addExpansion);
   const removeExpansion = usePDFStore((state) => state.removeExpansion);
   const getExpansionsForPage = usePDFStore((state) => state.getExpansionsForPage);
+  const updateNotesMarkdown = usePDFStore((state) => state.updateNotesMarkdown);
 
   // Track if we've logged cache hits for this PDF to avoid duplicate logs
   const cacheHitsLoggedRef = useRef<string | null>(null);
@@ -444,6 +445,7 @@ export default function StudyPage() {
               pageContent={currentPageContent}
               userProfile={profile}
               sessionId={parsedPDF.session_id}
+              onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
             />
           </div>
         </div>
@@ -479,6 +481,7 @@ export default function StudyPage() {
                   pageContent={currentPageContent}
                   userProfile={profile}
                   sessionId={parsedPDF.session_id}
+                  onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
                 />
               </div>
             )}

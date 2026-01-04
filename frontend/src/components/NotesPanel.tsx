@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { NotesResponse, InlineCommandType, Expansion, PageContent, UserProfile } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import SelectionToolbar from './SelectionToolbar';
@@ -19,6 +19,8 @@ interface NotesPanelProps {
   pageContent?: PageContent;
   userProfile?: UserProfile;
   sessionId?: string;
+  // For note editing
+  onUpdateNotes?: (markdown: string) => void;
 }
 
 // Skeleton loader component
@@ -91,10 +93,14 @@ export default function NotesPanel({
   pageContent,
   userProfile,
   sessionId,
+  onUpdateNotes,
 }: NotesPanelProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExecutingCommand, setIsExecutingCommand] = useState(false);
   const [executingCommandType, setExecutingCommandType] = useState<InlineCommandType | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedMarkdown, setEditedMarkdown] = useState('');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
   const selection = useTextSelection(notesContainerRef);
   const clearSelection = useClearSelection();
@@ -137,6 +143,54 @@ export default function NotesPanel({
     },
     [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection]
   );
+
+  // Toggle edit mode
+  const handleToggleEdit = useCallback(() => {
+    if (!isEditMode && notes?.markdown) {
+      setEditedMarkdown(notes.markdown);
+    }
+    setIsEditMode(!isEditMode);
+  }, [isEditMode, notes?.markdown]);
+
+  // Handle markdown changes with debounced save
+  const handleMarkdownChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = e.target.value;
+      setEditedMarkdown(newValue);
+
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Debounce save (500ms)
+      saveTimeoutRef.current = setTimeout(() => {
+        onUpdateNotes?.(newValue);
+      }, 500);
+    },
+    [onUpdateNotes]
+  );
+
+  // Sync editedMarkdown when notes change (e.g., initial load or AI regeneration)
+  useEffect(() => {
+    if (notes?.markdown) {
+      setEditedMarkdown(notes.markdown);
+    }
+  }, [notes?.markdown]);
+
+  // Reset edit mode when page changes
+  useEffect(() => {
+    setIsEditMode(false);
+  }, [pageNumber]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Show skeleton loader while generating
   if (isGenerating || isRetrying) {
@@ -194,19 +248,48 @@ export default function NotesPanel({
 
   return (
     <div className="p-4 sm:p-6 relative animate-fade-in" ref={notesContainerRef}>
-      <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
-        Notes for Page {pageNumber}
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+          Notes for Page {pageNumber}
+        </h2>
+        <button
+          onClick={handleToggleEdit}
+          className={`p-2 rounded-lg transition-colors ${
+            isEditMode
+              ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+          title={isEditMode ? 'View notes' : 'Edit notes'}
+        >
+          {isEditMode ? (
+            // Eye icon for "view mode"
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          ) : (
+            // Pencil icon for "edit mode"
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          )}
+        </button>
+      </div>
 
-      {/* Hint for inline commands */}
-      {canUseInlineCommands && (
+      {/* Hint for inline commands - show different hints based on mode */}
+      {canUseInlineCommands && !isEditMode && (
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
           💡 Select any text to elaborate, simplify, or create an analogy
         </p>
       )}
+      {isEditMode && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+          ✏️ Editing raw markdown. Exit edit mode to use AI commands.
+        </p>
+      )}
 
-      {/* Selection Toolbar - always rendered but hidden when no selection to avoid DOM changes disrupting browser selection */}
-      {canUseInlineCommands && (
+      {/* Selection Toolbar - only show when not editing */}
+      {canUseInlineCommands && !isEditMode && (
         <SelectionToolbar
           selectionRect={selection?.rect ?? new DOMRect()}
           containerRef={notesContainerRef}
@@ -217,8 +300,20 @@ export default function NotesPanel({
         />
       )}
 
-      {/* Markdown content with callout support */}
-      <MarkdownRenderer content={notes.markdown} />
+      {/* Markdown content OR Editor */}
+      {isEditMode ? (
+        <textarea
+          value={editedMarkdown}
+          onChange={handleMarkdownChange}
+          className="w-full min-h-[400px] p-4 rounded-lg border border-gray-300 dark:border-gray-600
+                     bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
+                     font-mono text-sm resize-y focus:outline-none focus:ring-2
+                     focus:ring-blue-500 dark:focus:ring-blue-400"
+          placeholder="Edit your notes here (Markdown supported)..."
+        />
+      ) : (
+        <MarkdownRenderer content={notes.markdown} />
+      )}
 
       {/* Expansions */}
       {expansions.length > 0 && (

@@ -205,11 +205,18 @@ function preprocessMarkdown(markdown: string): string {
   // /\\n/g in source code matches literal backslash + n in the string
   let processed = markdown.replace(/\\n/g, '\n');
 
-  // Fix 2: Ensure callout blockquotes have proper line continuation
+  // Fix 2: Convert ```latex...``` or ```math...``` code blocks to $$...$$ for KaTeX
+  // LLMs often wrap LaTeX in code fences, but remark-math expects $$ delimiters
+  processed = processed.replace(
+    /```(?:latex|math)\s*\n([\s\S]*?)```/g,
+    (_, content) => `$$\n${content.trim()}\n$$`
+  );
+
+  // Fix 3: Ensure callout blockquotes have proper line continuation
   // Convert "> [!type] Title\n> Content" format properly
   processed = processed.replace(/\n>\s*/g, '\n> ');
 
-  // Fix 3: Add blank line after callout title to separate title from content
+  // Fix 4: Add blank line after callout title to separate title from content
   // This ensures the content becomes a separate paragraph in the React tree
   // Pattern: > [!type] Title\n> Content -> > [!type] Title\n>\n> Content
   processed = processed.replace(
