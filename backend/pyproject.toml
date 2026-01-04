@@ -1,0 +1,31 @@
+[project]
+name = "nana-backend"
+version = "0.1.0"
+description = "NANA Study Assistant Backend - FastAPI server for PDF processing and notes generation"
+requires-python = ">=3.11"
+dependencies = [
+    # Web framework
+    "fastapi==0.122.1",
+    "uvicorn[standard]==0.38.0",
+    "python-multipart==0.0.20",
+
+    # Settings & validation
+    "pydantic==2.12.5",
+    "pydantic-settings==2.12.0",
+
+    # HTTP client
+    "httpx==0.28.1",
+
+    # Google Gemini SDK (new unified SDK)
+    "google-genai==1.56.0",
+
+    # YAML parsing for prompts
+    "pyyaml==6.0.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
