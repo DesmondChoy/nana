@@ -1,6 +1,8 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 7 complete ✅. Markdown export implemented.
+> **Current Status**: Phase 7 complete ✅. Deployed to Railway 🚀
+>
+> **Live App**: https://nana-app.up.railway.app/
 >
 > **Next Up**: Phase 6 (Quiz Generation & Mastery Tracking).
 
@@ -397,6 +399,35 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 | 4.6 | LaTeX Math Rendering | `MarkdownRenderer.tsx`, `index.css`, `package.json` |
 | 5 | Inline Commands | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `useTextSelection.ts` |
 | 7 | Markdown Export | `utils/exportMarkdown.ts`, `utils/index.ts`, `StudyPage.tsx` |
+
+## Deployment
+
+### Railway Hosting (2025-01-04)
+The app is deployed on Railway with a BYOK (Bring Your Own Key) architecture:
+
+- **Live URL**: https://nana-app.up.railway.app/
+- **Backend URL**: https://nana-backend.up.railway.app/
+- **Platform**: Railway (Hobby plan, ~$5/month)
+
+### BYOK Architecture
+Users provide their own Gemini API key (free tier available at [Google AI Studio](https://aistudio.google.com/apikey)):
+
+1. **Key Input**: Collapsible UI section on Upload page with validation
+2. **Storage**: Key persisted in browser localStorage (enter once, works across sessions)
+3. **Transport**: Key sent via `X-API-Key` header with each API request
+4. **Backend Fallback**: Server `.env` key used if no header provided (for local dev)
+
+**Key Files**:
+- `frontend/src/stores/apiKeyStore.ts` - Zustand store for key persistence
+- `frontend/src/components/ApiKeyInput.tsx` - Key input UI with validation
+- `frontend/src/api/client.ts` - `getHeaders()` helper adds key to requests
+- `backend/app/config.py` - `get_gemini_client()` accepts header with `.env` fallback
+- `backend/app/main.py` - `/api/validate-key` endpoint for key validation
+
+### Railway Configuration
+- **Backend Service**: Root directory set to `backend/`, start command `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Frontend Service**: Auto-detected Vite build, environment variable `VITE_API_BASE=https://nana-backend.up.railway.app/api`
+- **CORS**: Configured with regex pattern for Railway subdomains (`https://.*\.up\.railway\.app`)
 
 ## Prompt-Centric Functionality
 - **Central Repository**: maintain `/prompts/` directory (YAML/JSON) describing each prompt, variables (background, page, tone), citation policy, and response schema. Backend loads these templates at startup to avoid scattering prompt text through code.

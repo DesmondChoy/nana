@@ -15,7 +15,13 @@
 - 🔄 **Error Recovery** - Automatic retry for failed note generation
 - 🎯 **Personalized Learning** - Adapts to your study level, learning style, and topic mastery
 
-## Quick Start
+## Try It Online
+
+**Live Demo**: https://nana-app.up.railway.app/
+
+The app uses a BYOK (Bring Your Own Key) model—you'll need a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey). Enter your key once and it's saved in your browser for future sessions.
+
+## Quick Start (Local Development)
 
 ```bash
 # 1. Clone and enter the project
@@ -55,17 +61,19 @@ cd ..
 
 ### 2. Configure Environment
 
-Create a `.env` file in the **project root**:
+Create a `.env` file in the **project root** (optional for local dev):
 
 ```bash
 # .env
-GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here  # Optional: can also enter key in UI
 
 # Optional: Override default model
 # GEMINI_MODEL=gemini-3-flash-preview
 ```
 
 Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+> **Note**: You can skip the `.env` file and enter your API key directly in the app's UI instead. The key is validated and stored in your browser's localStorage.
 
 ## Project Structure
 

@@ -1,5 +1,7 @@
 Your study notes that study you.
 
+> **Live Demo**: https://nana-app.up.railway.app/ — BYOK (Bring Your Own Key) model using free Gemini API keys from [Google AI Studio](https://aistudio.google.com/apikey).
+
 # Pain Points
 
 - Lecture notes are one size fits all - rarely match individual gaps or preferred styles.
@@ -24,12 +26,13 @@ Your study notes that study you.
 
 ## Key Features
 
+- **BYOK (Bring Your Own Key)**: Users provide their own free Gemini API key—no server costs, key stored securely in browser localStorage.
 - **Profile-conditioned notes**: Every generation adapts to the learner's expertise, math comfort, detail preference, and learning goal.
 - **Side-by-side dynamic notes** that follow the learner's page navigation (pre-generated, instant display).
 - **Two outputs with different strategies:**
   - *Dual-pane notes*: Eager per-page generation with previous page context—ready for lecture, tailored to UP.
   - *Consolidated export*: Single batch synthesis—polished printable document, consistent with UP settings.
-- **Highlight-to-command** editing (elaborate, simplify, add analogies/diagrams)—transformations respect UP preferences.
+- **Highlight-to-command** editing (elaborate, simplify, add analogies)—transformations respect UP preferences.
 - **Knowledge tracing lite:** quizzes trigger targeted remediation; mastery scores feed back into note generation.
 - *(Deferred)* **Cross-topic linking:** references to past SNs to build a concept map.
 - *(Deferred)* **Versioning & provenance:** every SN cites source spans and generation settings.
