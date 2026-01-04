@@ -102,7 +102,7 @@ export default function NotesPanel({
   const [executingCommandType, setExecutingCommandType] = useState<InlineCommandType | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedMarkdown, setEditedMarkdown] = useState('');
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
   const selection = useTextSelection(notesContainerRef);
   const clearSelection = useClearSelection();

@@ -7,7 +7,6 @@ import ThemeToggle from '../components/ThemeToggle';
 import ApiKeyInput from '../components/ApiKeyInput';
 import type {
   UserProfile,
-  PriorExpertise,
   MathComfort,
   DetailLevel,
   PrimaryGoal,

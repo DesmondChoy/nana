@@ -48,7 +48,7 @@ export default function ExpansionBlock({
   // Combine selected_text and content with separator for editing
   const combinedText = `${expansion.selected_text}\n---\n${expansion.content}`;
   const [editedText, setEditedText] = useState(combinedText);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync editedText when expansion changes (e.g., new expansion added)
   useEffect(() => {
