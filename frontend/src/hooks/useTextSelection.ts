@@ -9,7 +9,7 @@ export interface TextSelection {
 interface SelectionState {
   text: string;
   rect: DOMRect;
-  // Store character offsets for reconstruction instead of Range (which becomes invalid after React re-render)
+  // Store character offsets for reconstruction after React re-render
   startOffset: number;
   endOffset: number;
 }
@@ -108,9 +108,11 @@ export function useTextSelection(
     const rect = range.getBoundingClientRect();
 
     // Calculate character offsets for reconstruction after React re-render
-    // This is more reliable than cloning the Range, which references specific DOM nodes
+    // FIX: Use startOffset + text length instead of calculating endOffset from range.endContainer
+    // This fixes the bug where triple-click would create incorrect offsets because
+    // range.endContainer extends beyond the visible selection
     const startOffset = getCharacterOffset(container, range.startContainer, range.startOffset);
-    const endOffset = getCharacterOffset(container, range.endContainer, range.endOffset);
+    const endOffset = startOffset + selectedText.length;
 
     // Mark that we need to restore the selection after render
     shouldRestoreRef.current = true;
@@ -232,7 +234,7 @@ export function useTextSelection(
     };
   }, [handleSelectionChange]);
 
-  // Return selection without the internal range property
+  // Return selection without the internal offset properties
   return selection ? { text: selection.text, rect: selection.rect } : null;
 }
 

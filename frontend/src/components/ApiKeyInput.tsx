@@ -23,6 +23,28 @@ export default function ApiKeyInput() {
     }
   }, [apiKey, isValidated]);
 
+  // Auto-fill from dev environment variable (dev mode only)
+  useEffect(() => {
+    const devKey = import.meta.env.DEV ? __DEV_API_KEY__ : '';
+    // Only auto-fill if: dev key exists, no saved key, and not already validated
+    if (devKey && !apiKey && validationState === 'idle') {
+      setInputValue(devKey);
+      // Trigger auto-validation
+      (async () => {
+        setValidationState('validating');
+        try {
+          await validateApiKey(devKey);
+          setApiKey(devKey);
+          setValidationState('valid');
+          setTimeout(() => setIsExpanded(false), 1000);
+        } catch {
+          // Silently fail - user can manually enter key
+          setValidationState('idle');
+        }
+      })();
+    }
+  }, []); // Run once on mount
+
   const handleValidate = async () => {
     if (!inputValue.trim()) {
       setErrorMessage('Please enter an API key');
