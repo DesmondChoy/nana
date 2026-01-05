@@ -106,6 +106,28 @@ await page.locator('text=Some Text').isVisible();
 
 // Wait for element
 await page.waitForSelector('selector');
+
+// IMPORTANT: Verify selection.toString() vs range.toString() consistency
+// These can differ when content contains KaTeX or other complex DOM structures
+await page.evaluate(() => {
+  const element = document.querySelector('[class*="prose"] li');
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  // selection.toString() adds newlines between block elements
+  // range.toString() matches actual text node content
+  // TreeWalker counting should match range.toString()
+  return {
+    selectionLength: selection.toString().length,
+    rangeLength: range.toString().length,
+    textContentLength: element.textContent.length,
+    // If these don't match, selection restoration may cause "bleeding"
+    mismatch: selection.toString().length !== range.toString().length
+  };
+});
 ```
 
 ---
@@ -205,6 +227,12 @@ await page.waitForSelector('selector');
 - [ ] No raw LaTeX code visible (e.g., `\theta` should show θ)
 - [ ] Math inside callouts renders without duplication
 
+**Note on KaTeX DOM Structure**: KaTeX renders math with a dual structure:
+1. `katex-mathml` - MathML for accessibility (visually clipped)
+2. `katex-html` - Visual rendering with `aria-hidden="true"`
+
+This causes text to appear "triplicated" in the DOM (MathML + annotation + visual). When testing text selection, be aware that selection APIs may behave unexpectedly. See "Text Selection with KaTeX" section below for specific tests.
+
 ##### Text Selection & Toolbar
 - [ ] Hint text about selection is visible
 - [ ] Click-and-drag selects text
@@ -212,6 +240,39 @@ await page.waitForSelector('selector');
 - [ ] All 3 buttons visible: Elaborate, Simplify, Analogy
 - [ ] Toolbar positioned correctly (above or below selection)
 - [ ] Toolbar doesn't overflow container bounds
+
+##### Text Selection with KaTeX (Critical)
+**Background**: KaTeX renders math with a complex DOM structure that can cause selection offset miscalculations. `selection.toString()` may return different character counts than `range.toString()` due to implicit newlines between block elements.
+
+- [ ] Select text WITHIN a bullet containing KaTeX math → selection stays within that bullet
+- [ ] Select entire bullet with KaTeX math → no text from next bullet gets highlighted
+- [ ] Select text spanning multiple KaTeX expressions → selection boundaries are accurate
+- [ ] After selection, visual highlight matches the actual selected text (no extra characters)
+
+**Test pattern for KaTeX selection bleeding:**
+```javascript
+// Use this code in browser_run_code to test selection doesn't bleed
+await page.evaluate(() => {
+  const listItem = document.querySelector('[class*="prose"] li');
+  const range = document.createRange();
+  range.selectNodeContents(listItem);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  const text = selection.toString();
+
+  // Check if selection bleeds into next item
+  const nextItem = listItem.nextElementSibling;
+  const nextItemText = nextItem?.textContent?.substring(0, 20) || '';
+  const bleedsIntoNext = nextItemText && text.includes(nextItemText.trim().split(' ')[0]);
+
+  return {
+    selectedLength: text.length,
+    bleedsIntoNext,
+    result: bleedsIntoNext ? '❌ FAIL' : '✅ PASS'
+  };
+});
+```
 
 ##### Inline Commands (if testing)
 - [ ] Clicking command button shows loading spinner
@@ -323,6 +384,7 @@ When instructed to perform Playwright testing, follow this workflow:
    └── Callout Blocks (8 items)
    └── Mathematical Notation (8 items)
    └── Text Selection & Toolbar (6 items)
+   └── Text Selection with KaTeX (4 items) ← CRITICAL for selection bugs
    └── Inline Commands (7 items)
 
    PHASE 3: Cross-Page Functionality
@@ -338,6 +400,6 @@ When instructed to perform Playwright testing, follow this workflow:
 5. Provide final summary report with all results
 ```
 
-**Total checklist items**: ~90 items (varies based on pages tested)
+**Total checklist items**: ~94 items (varies based on pages tested)
 
 **Minimum testing time estimate**: Allow for iterative testing as bugs may require fixes and re-verification.

@@ -15,8 +15,34 @@ interface SelectionState {
 }
 
 /**
+ * Check if a node is inside a hidden element that shouldn't be counted for selection.
+ *
+ * IMPORTANT: We must count ALL text nodes, including those inside KaTeX elements.
+ *
+ * KaTeX renders math with a dual structure that causes text triplication:
+ * 1. katex-mathml: MathML version with <mi>, <mo> elements AND <annotation> with raw LaTeX
+ * 2. katex-html: Visual rendering with aria-hidden="true"
+ *
+ * Despite aria-hidden and CSS clipping, the browser's selection.toString() and
+ * Range.toString() include text from ALL of these elements. Our character counting
+ * must match exactly what these APIs return, otherwise the selection restoration
+ * will calculate incorrect offsets and "bleed" into subsequent elements.
+ *
+ * Previous bug: Filtering out KaTeX text caused a mismatch:
+ * - selection.toString() returned 60 chars (all text including KaTeX)
+ * - Our filtered count was only 21 chars
+ * - endOffset = startOffset + 60 pointed past the element boundaries
+ * - Restoration walked into next elements, causing highlight bleeding
+ */
+function isNodeHidden(_node: Node): boolean {
+  // Don't filter any nodes - count everything that selection.toString() includes
+  return false;
+}
+
+/**
  * Get character offset of a point within a container element.
  * Walks through all text nodes and calculates cumulative offset.
+ * Counts ALL text nodes to match what window.getSelection().toString() returns.
  */
 function getCharacterOffset(container: Node, targetNode: Node, targetOffset: number): number {
   let offset = 0;
@@ -24,6 +50,11 @@ function getCharacterOffset(container: Node, targetNode: Node, targetOffset: num
 
   let node = walker.nextNode();
   while (node) {
+    // Check if node should be skipped (currently counts all nodes)
+    if (isNodeHidden(node)) {
+      node = walker.nextNode();
+      continue;
+    }
     if (node === targetNode) {
       return offset + targetOffset;
     }
@@ -35,6 +66,7 @@ function getCharacterOffset(container: Node, targetNode: Node, targetOffset: num
 
 /**
  * Find text node and offset for a character position within a container.
+ * Counts ALL text nodes to match getCharacterOffset behavior.
  */
 function getNodeAndOffsetFromCharOffset(container: Node, charOffset: number): { node: Node; offset: number } | null {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
@@ -42,6 +74,11 @@ function getNodeAndOffsetFromCharOffset(container: Node, charOffset: number): { 
 
   let node = walker.nextNode();
   while (node) {
+    // Check if node should be skipped (currently counts all nodes)
+    if (isNodeHidden(node)) {
+      node = walker.nextNode();
+      continue;
+    }
     const length = node.textContent?.length || 0;
     if (currentOffset + length >= charOffset) {
       return { node, offset: charOffset - currentOffset };
@@ -108,11 +145,13 @@ export function useTextSelection(
     const rect = range.getBoundingClientRect();
 
     // Calculate character offsets for reconstruction after React re-render
-    // FIX: Use startOffset + text length instead of calculating endOffset from range.endContainer
-    // This fixes the bug where triple-click would create incorrect offsets because
-    // range.endContainer extends beyond the visible selection
+    // IMPORTANT: Use range.toString().length instead of selection.toString().length
+    // because selection.toString() adds newlines between block elements (like KaTeX spans)
+    // that don't exist in text nodes. This caused endOffset to overshoot and bleed
+    // into subsequent elements. range.toString() matches what TreeWalker counts.
     const startOffset = getCharacterOffset(container, range.startContainer, range.startOffset);
-    const endOffset = startOffset + selectedText.length;
+    const rangeTextLength = range.toString().length;
+    const endOffset = startOffset + rangeTextLength;
 
     // Mark that we need to restore the selection after render
     shouldRestoreRef.current = true;
