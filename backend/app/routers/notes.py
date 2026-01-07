@@ -6,6 +6,7 @@ Uses 'Direct Context' (current page + previous page for continuity) instead of R
 Returns rich markdown content with Obsidian-style callouts plus metadata for topic tracking.
 """
 
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +17,8 @@ import time
 from app.config import Settings, get_gemini_client, get_settings
 from app.schemas import NotesRequest, NotesResponse
 from app.debug import DebugLogger
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -110,9 +113,19 @@ async def generate_notes(
             error=str(e),
             session_id=request.session_id
         )
+        logger.error(
+            f"[Page {request.current_page.page_number}] Gemini API error: {e}"
+        )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
     parsed = response.parsed
     if not isinstance(parsed, NotesResponse):
+        # Log schema validation failure with raw response for debugging
+        raw_text = getattr(response, 'text', None)
+        logger.error(
+            f"[Page {request.current_page.page_number}] Schema validation failed. "
+            f"Expected NotesResponse, got {type(parsed).__name__}. "
+            f"Raw response: {raw_text[:500] if raw_text else 'N/A'}..."
+        )
         raise HTTPException(status_code=500, detail="Gemini response did not match expected schema")
     return parsed
