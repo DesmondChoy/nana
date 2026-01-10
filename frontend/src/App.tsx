@@ -6,10 +6,14 @@ import ToastProvider from './components/ToastProvider';
 function AppContent() {
   const profile = useUserStore((state) => state.profile);
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
+  const pdfFileUrl = usePDFStore((state) => state.pdfFileUrl);
   const isUploading = usePDFStore((state) => state.uploadState.isUploading);
 
-  // Show study page if uploading (with loading state) or if PDF is ready
-  if (profile && (isUploading || parsedPDF)) {
+  // Show study page if:
+  // 1. Uploading (with loading state)
+  // 2. parsedPDF is ready (normal flow)
+  // 3. pdfFileUrl is set with complete cache (cache-only resume)
+  if (profile && (isUploading || parsedPDF || pdfFileUrl)) {
     return <StudyPage />;
   }
 

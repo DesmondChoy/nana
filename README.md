@@ -134,6 +134,44 @@ NANA uses a two-phase AI pipeline to optimize performance and cost:
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## FAQ
+
+### If I upload the same PDF again, what will happen?
+
+**It depends on whether your notes are fully cached:**
+
+| Scenario | What Happens | API Calls |
+|----------|--------------|-----------|
+| **Complete cache** (all pages have notes) | Instant load — skips Gemini API entirely | 0 |
+| **Partial cache** (some notes generated) | Resumes from where you left off | Only for missing pages |
+| **Different file** (same name, but modified) | Fresh upload — cache cleared | Full extraction + all pages |
+
+**How it works:** When you re-upload a PDF, the app checks three things:
+1. **Filename** — Does it match the cached file?
+2. **File size** — Is it exactly the same byte count?
+3. **Last modified timestamp** — Was the file changed?
+
+If all three match AND all notes are cached, you'll see "Complete session cached!" on the upload page and clicking "Start Learning" navigates instantly with zero network requests.
+
+> **Note:** Notes are stored in your browser's localStorage. Clearing browser data will remove the cache.
+
+### What happens to my API key?
+
+**Your API key stays private and is never stored on our servers.**
+
+| Aspect | What Happens |
+|--------|--------------|
+| **Storage** | Saved only in your browser's localStorage |
+| **Transmission** | Sent via HTTPS header with each API request |
+| **Server handling** | Used once to call Google's API, then discarded |
+| **Logging** | Never logged or recorded on the server |
+
+The backend acts as a pass-through: it receives your key, makes the Gemini API call, and returns the result. Your key exists on the server only for the duration of each request (milliseconds), and is never written to disk or logs.
+
+> **Tip:** You can clear your saved key anytime by clicking "Change API Key" in the app, or by clearing your browser's localStorage.
+
+---
+
 ## Development
 
 ### Logs

@@ -26,6 +26,12 @@ export default function StudyPage() {
   const clearPDF = usePDFStore((state) => state.clearPDF);
   const uploadState = usePDFStore((state) => state.uploadState);
   const clearUploadError = usePDFStore((state) => state.clearUploadError);
+  const cachedTotalPages = usePDFStore((state) => state.cachedTotalPages);
+  const cachedFilename = usePDFStore((state) => state.cachedFilename);
+
+  // Computed values with fallback to cached metadata (for cache-only resume)
+  const totalPages = parsedPDF?.total_pages ?? cachedTotalPages ?? 0;
+  const filename = parsedPDF?.original_filename ?? cachedFilename ?? 'Unknown';
 
   const profile = useUserStore((state) => state.profile);
   const clearProfile = useUserStore((state) => state.clearProfile);
@@ -196,11 +202,11 @@ export default function StudyPage() {
 
   const handlePageChange = useCallback(
     (page: number) => {
-      if (parsedPDF && page >= 1 && page <= parsedPDF.total_pages) {
+      if (totalPages > 0 && page >= 1 && page <= totalPages) {
         setCurrentPage(page);
       }
     },
-    [parsedPDF, setCurrentPage]
+    [totalPages, setCurrentPage]
   );
 
   // Retry failed page generation
@@ -299,9 +305,7 @@ export default function StudyPage() {
   // Export functionality
   const { toast } = useToast();
 
-  const isExportReady = parsedPDF
-    ? Object.keys(notesCache).length >= parsedPDF.total_pages
-    : false;
+  const isExportReady = totalPages > 0 && Object.keys(notesCache).length >= totalPages;
 
   const handleExport = useCallback(() => {
     if (!parsedPDF || !isExportReady) return;
@@ -383,11 +387,13 @@ export default function StudyPage() {
     );
   }
 
-  if (!parsedPDF || !profile) {
+  // Guard: need profile and either parsedPDF or cached metadata
+  if (!profile || totalPages === 0) {
     return null;
   }
 
   const currentNotes = notesCache[currentPage];
+  // currentPageContent may be undefined in cache-only mode (parsedPDF is null)
   const currentPageContent = parsedPDF?.pages[currentPage - 1];
   const currentExpansions = getExpansionsForPage(currentPage);
 
@@ -402,7 +408,7 @@ export default function StudyPage() {
         <div className="flex items-center gap-4 min-w-0">
           <h1 className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0">NANA</h1>
           <span className="text-sm text-gray-500 dark:text-gray-400 truncate hidden sm:block">
-            {parsedPDF.original_filename}
+            {filename}
           </span>
         </div>
 
@@ -410,7 +416,7 @@ export default function StudyPage() {
           {generationProgress.isGenerating && (
             <GenerationProgress
               completed={generationProgress.completedPages}
-              total={parsedPDF.total_pages}
+              total={totalPages}
             />
           )}
 
@@ -487,7 +493,7 @@ export default function StudyPage() {
           >
             <PDFViewer
               pdfUrl={pdfFileUrl}
-              totalPages={parsedPDF.total_pages}
+              totalPages={totalPages}
               currentPage={currentPage}
               onPageChange={handlePageChange}
             />
@@ -520,7 +526,7 @@ export default function StudyPage() {
               }
               pageContent={currentPageContent}
               userProfile={profile}
-              sessionId={parsedPDF.session_id}
+              sessionId={parsedPDF?.session_id}
               onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
               highlightTerm={highlightTerm}
             />
@@ -535,7 +541,7 @@ export default function StudyPage() {
               <div className="h-full bg-gray-200 dark:bg-gray-950">
                 <PDFViewer
                   pdfUrl={pdfFileUrl}
-                  totalPages={parsedPDF.total_pages}
+                  totalPages={totalPages}
                   currentPage={currentPage}
                   onPageChange={handlePageChange}
                 />
@@ -560,7 +566,7 @@ export default function StudyPage() {
                   }
                   pageContent={currentPageContent}
                   userProfile={profile}
-                  sessionId={parsedPDF.session_id}
+                  sessionId={parsedPDF?.session_id}
                   onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
                   highlightTerm={highlightTerm}
                 />
@@ -618,12 +624,12 @@ export default function StudyPage() {
         </button>
 
         <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[100px] text-center">
-          Page {currentPage} of {parsedPDF.total_pages}
+          Page {currentPage} of {totalPages}
         </span>
 
         <button
           onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage >= parsedPDF.total_pages}
+          disabled={currentPage >= totalPages}
           className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
                      text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700
                      disabled:opacity-50 disabled:cursor-not-allowed

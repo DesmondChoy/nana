@@ -256,7 +256,11 @@ export default function UploadPage() {
   const startUpload = usePDFStore((state) => state.startUpload);
   const uploadSuccess = usePDFStore((state) => state.uploadSuccess);
   const uploadFailed = usePDFStore((state) => state.uploadFailed);
+  const resumeFromCache = usePDFStore((state) => state.resumeFromCache);
   const cachedFilename = usePDFStore((state) => state.cachedFilename);
+  const cachedFileSize = usePDFStore((state) => state.cachedFileSize);
+  const cachedFileModified = usePDFStore((state) => state.cachedFileModified);
+  const cachedTotalPages = usePDFStore((state) => state.cachedTotalPages);
   const notesCache = usePDFStore((state) => state.notesCache);
   const clearNotesCache = usePDFStore((state) => state.clearNotesCache);
 
@@ -274,7 +278,7 @@ export default function UploadPage() {
   const handleUpload = useCallback(async (file: File) => {
     // Create blob URL before starting upload
     const fileUrl = URL.createObjectURL(file);
-    startUpload(fileUrl);
+    startUpload(fileUrl, file.size, file.lastModified);
 
     try {
       const parsedData = await uploadPDF(file);
@@ -312,8 +316,43 @@ export default function UploadPage() {
 
     setIsSubmitting(true);
     setProfile(profile);
-    handleUpload(selectedFile);
-  }, [formData, additionalContext, selectedFile, setProfile, handleUpload, isProfileComplete, isSubmitting, hasValidApiKey]);
+
+    // Check if we can skip the Gemini API call (cache is valid and complete)
+    const cacheValid =
+      cachedFilename === selectedFile.name &&
+      cachedFileSize === selectedFile.size &&
+      cachedFileModified === selectedFile.lastModified;
+
+    const cacheComplete =
+      cachedTotalPages !== null &&
+      cachedTotalPages > 0 &&
+      Object.keys(notesCache).length >= cachedTotalPages;
+
+    if (cacheValid && cacheComplete) {
+      // Skip API: create blob URL and resume from cache
+      console.log('[NANA] Cache hit! Skipping Gemini API call.');
+      const fileUrl = URL.createObjectURL(selectedFile);
+      resumeFromCache(fileUrl);
+    } else {
+      // Normal flow: call the API
+      handleUpload(selectedFile);
+    }
+  }, [
+    formData,
+    additionalContext,
+    selectedFile,
+    setProfile,
+    handleUpload,
+    isProfileComplete,
+    isSubmitting,
+    hasValidApiKey,
+    cachedFilename,
+    cachedFileSize,
+    cachedFileModified,
+    cachedTotalPages,
+    notesCache,
+    resumeFromCache,
+  ]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -378,10 +417,12 @@ export default function UploadPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-800 dark:text-blue-200 font-medium">
-                    Resume previous session?
+                    {cachedTotalPages && cachedPagesCount >= cachedTotalPages
+                      ? 'Complete session cached!'
+                      : 'Resume previous session?'}
                   </p>
                   <p className="text-blue-600 dark:text-blue-300 text-sm mt-1">
-                    Found {cachedPagesCount} cached notes for "{cachedFilename}"
+                    Found {cachedPagesCount}{cachedTotalPages ? ` of ${cachedTotalPages}` : ''} cached notes for "{cachedFilename}"
                   </p>
                 </div>
                 <button
@@ -392,7 +433,9 @@ export default function UploadPage() {
                 </button>
               </div>
               <p className="text-blue-600 dark:text-blue-300 text-sm mt-2">
-                Re-upload the same file to continue where you left off.
+                {cachedTotalPages && cachedPagesCount >= cachedTotalPages
+                  ? 'Re-upload the same file to continue instantly (no API call needed).'
+                  : 'Re-upload the same file to continue where you left off.'}
               </p>
             </div>
           )}

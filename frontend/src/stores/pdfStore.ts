@@ -44,11 +44,16 @@ interface PDFState {
     isUploading: boolean;
     error: string | null;
     pendingFileUrl: string | null; // Blob URL created before upload starts
+    pendingFileSize: number | null; // File.size for cache validation
+    pendingFileModified: number | null; // File.lastModified for cache validation
   };
 
   // Cached notes per page (keyed by page number)
   notesCache: Record<number, PageNotes>;
   cachedFilename: string | null; // Track which file the cache belongs to (persisted)
+  cachedFileSize: number | null; // File.size for cache validation (persisted)
+  cachedFileModified: number | null; // File.lastModified for cache validation (persisted)
+  cachedTotalPages: number | null; // Total pages for completeness check (persisted)
 
   // Failed pages (generation attempted but failed)
   failedPages: Set<number>;
@@ -64,10 +69,11 @@ interface PDFState {
   storageWarning: boolean;
 
   // Actions
-  startUpload: (fileUrl: string) => void;
+  startUpload: (fileUrl: string, fileSize: number, fileModified: number) => void;
   uploadSuccess: (pdf: ParsedPDF) => void;
   uploadFailed: (error: string) => void;
   clearUploadError: () => void;
+  resumeFromCache: (fileUrl: string) => void; // Skip API when cache is complete
   setParsedPDF: (pdf: ParsedPDF, fileUrl?: string) => void;
   setPdfFileUrl: (url: string) => void;
   clearPDF: () => void;
@@ -109,9 +115,14 @@ export const usePDFStore = create<PDFState>()(
         isUploading: false,
         error: null,
         pendingFileUrl: null,
+        pendingFileSize: null,
+        pendingFileModified: null,
       },
       notesCache: {},
       cachedFilename: null,
+      cachedFileSize: null,
+      cachedFileModified: null,
+      cachedTotalPages: null,
       failedPages: new Set<number>(),
       generationProgress: {
         isGenerating: false,
@@ -120,18 +131,22 @@ export const usePDFStore = create<PDFState>()(
       },
       storageWarning: false,
 
-      startUpload: (fileUrl) =>
+      startUpload: (fileUrl, fileSize, fileModified) =>
         set({
           uploadState: {
             isUploading: true,
             error: null,
             pendingFileUrl: fileUrl,
+            pendingFileSize: fileSize,
+            pendingFileModified: fileModified,
           },
         }),
 
       uploadSuccess: (pdf) => {
         const state = get();
         const fileUrl = state.uploadState.pendingFileUrl;
+        const fileSize = state.uploadState.pendingFileSize;
+        const fileModified = state.uploadState.pendingFileModified;
         // Keep cache if re-uploading the same file, otherwise clear it
         const isSameFile = state.cachedFilename === pdf.original_filename;
         const preservedCache = isSameFile ? state.notesCache : {};
@@ -143,11 +158,16 @@ export const usePDFStore = create<PDFState>()(
           currentPage: preservedPage,
           notesCache: preservedCache,
           cachedFilename: pdf.original_filename,
+          cachedFileSize: fileSize,
+          cachedFileModified: fileModified,
+          cachedTotalPages: pdf.total_pages,
           failedPages: isSameFile ? state.failedPages : new Set<number>(),
           uploadState: {
             isUploading: false,
             error: null,
             pendingFileUrl: null,
+            pendingFileSize: null,
+            pendingFileModified: null,
           },
           generationProgress: {
             isGenerating: false,
@@ -168,6 +188,8 @@ export const usePDFStore = create<PDFState>()(
               isUploading: false,
               error,
               pendingFileUrl: null,
+              pendingFileSize: null,
+              pendingFileModified: null,
             },
           };
         }),
@@ -175,6 +197,18 @@ export const usePDFStore = create<PDFState>()(
       clearUploadError: () =>
         set((state) => ({
           uploadState: { ...state.uploadState, error: null },
+        })),
+
+      // Resume from complete cache without API call
+      resumeFromCache: (fileUrl) =>
+        set((state) => ({
+          pdfFileUrl: fileUrl,
+          // parsedPDF stays null - not needed when all notes are cached
+          generationProgress: {
+            isGenerating: false,
+            completedPages: Object.keys(state.notesCache).length,
+            totalPages: state.cachedTotalPages ?? 0,
+          },
         })),
 
       setParsedPDF: (pdf, fileUrl) => {
@@ -218,9 +252,14 @@ export const usePDFStore = create<PDFState>()(
             isUploading: false,
             error: null,
             pendingFileUrl: null,
+            pendingFileSize: null,
+            pendingFileModified: null,
           },
           notesCache: {},
           cachedFilename: null,
+          cachedFileSize: null,
+          cachedFileModified: null,
+          cachedTotalPages: null,
           failedPages: new Set<number>(),
           generationProgress: {
             isGenerating: false,
@@ -262,7 +301,14 @@ export const usePDFStore = create<PDFState>()(
           generationProgress: { ...state.generationProgress, ...progress },
         })),
 
-      clearNotesCache: () => set({ notesCache: {}, cachedFilename: null, failedPages: new Set<number>() }),
+      clearNotesCache: () => set({
+        notesCache: {},
+        cachedFilename: null,
+        cachedFileSize: null,
+        cachedFileModified: null,
+        cachedTotalPages: null,
+        failedPages: new Set<number>(),
+      }),
 
       setStorageWarning: (warning) => set({ storageWarning: warning }),
 
@@ -365,11 +411,14 @@ export const usePDFStore = create<PDFState>()(
     {
       name: 'nana-pdf-storage',
       storage: createJSONStorage(() => safeStorage),
-      // Only persist notes cache - parsedPDF is too large and can be re-extracted
+      // Only persist notes cache and metadata - parsedPDF is too large and can be re-extracted
       // pdfFileUrl is session-only (blob URLs don't survive refresh)
       partialize: (state) => ({
         notesCache: state.notesCache,
         cachedFilename: state.cachedFilename,
+        cachedFileSize: state.cachedFileSize,
+        cachedFileModified: state.cachedFileModified,
+        cachedTotalPages: state.cachedTotalPages,
         currentPage: state.currentPage,
       }),
       // Migrate old format cache on rehydration
