@@ -1,9 +1,11 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { usePDFStore, useUserStore } from '../stores';
+import { useSearchStore } from '../stores/searchStore';
 import PDFViewer from '../components/PDFViewer';
 import NotesPanel from '../components/NotesPanel';
 import GenerationProgress from '../components/GenerationProgress';
 import ThemeToggle from '../components/ThemeToggle';
+import { SearchBar } from '../components/SearchBar';
 import { generateNotes, logCacheHits } from '../api/client';
 import { generateMarkdownExport, downloadMarkdown, getExportFilename } from '../utils';
 import { useToast } from '../hooks/useToast';
@@ -35,6 +37,12 @@ export default function StudyPage() {
   const updateExpansion = usePDFStore((state) => state.updateExpansion);
   const getExpansionsForPage = usePDFStore((state) => state.getExpansionsForPage);
   const updateNotesMarkdown = usePDFStore((state) => state.updateNotesMarkdown);
+
+  // Search state
+  const isSearchOpen = useSearchStore((state) => state.isOpen);
+  const openSearch = useSearchStore((state) => state.openSearch);
+  const highlightTerm = useSearchStore((state) => state.highlightTerm);
+  const setHighlightTerm = useSearchStore((state) => state.setHighlightTerm);
 
   // Track if we've logged cache hits for this PDF to avoid duplicate logs
   const cacheHitsLoggedRef = useRef<string | null>(null);
@@ -231,10 +239,20 @@ export default function StudyPage() {
     [parsedPDF, profile, cacheNotes, clearPageFailure, markPageFailed]
   );
 
-  // Keyboard navigation (arrow keys)
+  // Keyboard navigation (arrow keys + Cmd/Ctrl+F for search)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ignore if user is typing in an input field
+      // Handle Cmd+F / Ctrl+F for search (works even in input fields)
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+
+      if (cmdOrCtrl && event.key === 'f') {
+        event.preventDefault();
+        openSearch();
+        return;
+      }
+
+      // Ignore other keys if user is typing in an input field
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement
@@ -261,13 +279,23 @@ export default function StudyPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, handlePageChange]);
+  }, [currentPage, handlePageChange, openSearch]);
 
   // Reset notes scroll position when page changes
   useEffect(() => {
     desktopNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
     mobileNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [currentPage]);
+
+  // Clear search highlight after 5 seconds
+  useEffect(() => {
+    if (highlightTerm) {
+      const timer = setTimeout(() => {
+        setHighlightTerm(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightTerm, setHighlightTerm]);
 
   // Export functionality
   const { toast } = useToast();
@@ -290,6 +318,20 @@ export default function StudyPage() {
     clearUploadError();
     clearPDF();
   }, [clearUploadError, clearPDF]);
+
+  // Handle navigation from search results
+  const handleSearchNavigate = useCallback(
+    (pageNumber: number, source: 'pdf' | 'notes' | 'expansion') => {
+      setCurrentPage(pageNumber);
+      // On mobile, switch to the appropriate tab based on source
+      if (source === 'pdf') {
+        setMobileActiveTab('pdf');
+      } else {
+        setMobileActiveTab('notes');
+      }
+    },
+    [setCurrentPage]
+  );
 
   // Show loading overlay when upload is in progress
   if (uploadState.isUploading || uploadState.error) {
@@ -481,6 +523,7 @@ export default function StudyPage() {
               userProfile={profile}
               sessionId={parsedPDF.session_id}
               onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
+              highlightTerm={highlightTerm}
             />
           </div>
         </div>
@@ -520,6 +563,7 @@ export default function StudyPage() {
                   userProfile={profile}
                   sessionId={parsedPDF.session_id}
                   onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
+                  highlightTerm={highlightTerm}
                 />
               </div>
             )}
@@ -605,6 +649,9 @@ export default function StudyPage() {
         onCancel={handleStay}
         variant="warning"
       />
+
+      {/* Search bar (triggered by Cmd+F) */}
+      {isSearchOpen && <SearchBar onNavigateToResult={handleSearchNavigate} />}
     </div>
   );
 }

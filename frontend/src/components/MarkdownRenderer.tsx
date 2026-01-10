@@ -230,14 +230,126 @@ function preprocessMarkdown(markdown: string): string {
 interface MarkdownRendererProps {
   content: string;
   className?: string;
+  highlightTerm?: string | null;
+}
+
+/**
+ * Recursively processes React children and wraps text matching highlightTerm in <mark> elements.
+ * Preserves the structure of React elements while adding highlighting to text nodes.
+ */
+function highlightTextInChildren(children: ReactNode, term: string): ReactNode {
+  if (!term || term.length < 2) return children;
+
+  const lowerTerm = term.toLowerCase();
+
+  const processNode = (node: ReactNode, key?: number): ReactNode => {
+    // Handle strings - the main case where we add highlighting
+    if (typeof node === 'string') {
+      const lowerNode = node.toLowerCase();
+      const index = lowerNode.indexOf(lowerTerm);
+
+      if (index === -1) return node;
+
+      // Split the string and wrap matches
+      const parts: ReactNode[] = [];
+      let lastIndex = 0;
+      let currentIndex = index;
+      let matchKey = 0;
+
+      while (currentIndex !== -1) {
+        // Add text before match
+        if (currentIndex > lastIndex) {
+          parts.push(node.slice(lastIndex, currentIndex));
+        }
+
+        // Add highlighted match (use original case from the text)
+        // Using inline styles to ensure highlighting works regardless of Tailwind JIT
+        parts.push(
+          <mark
+            key={`highlight-${matchKey++}`}
+            className="search-highlight"
+            style={{
+              backgroundColor: 'rgb(253 224 71 / 0.5)', // yellow-300/50
+              borderRadius: '0.125rem',
+              padding: '0 0.125rem',
+            }}
+          >
+            {node.slice(currentIndex, currentIndex + term.length)}
+          </mark>
+        );
+
+        lastIndex = currentIndex + term.length;
+        currentIndex = lowerNode.indexOf(lowerTerm, lastIndex);
+      }
+
+      // Add remaining text after last match
+      if (lastIndex < node.length) {
+        parts.push(node.slice(lastIndex));
+      }
+
+      return parts;
+    }
+
+    // Handle numbers
+    if (typeof node === 'number') return node;
+
+    // Handle null/undefined
+    if (!node) return node;
+
+    // Handle arrays
+    if (Array.isArray(node)) {
+      return node.map((child, i) => processNode(child, i));
+    }
+
+    // Handle React elements - recursively process their children
+    if (React.isValidElement(node)) {
+      const props = node.props as { children?: ReactNode };
+
+      // Skip processing KaTeX elements to avoid breaking math rendering
+      if (
+        node.type === 'span' &&
+        typeof props === 'object' &&
+        'className' in props
+      ) {
+        const className = (props as { className?: string }).className || '';
+        if (className.includes('katex')) {
+          return node;
+        }
+      }
+
+      // Clone element with processed children
+      if (props.children) {
+        return React.cloneElement(
+          node,
+          { ...props, key: key ?? (props as { key?: React.Key }).key },
+          processNode(props.children)
+        );
+      }
+
+      return node;
+    }
+
+    return node;
+  };
+
+  return processNode(children);
 }
 
 export default function MarkdownRenderer({
   content,
   className = '',
+  highlightTerm,
 }: MarkdownRendererProps) {
   // Preprocess to fix escaped newlines and callout formatting
   const processedContent = preprocessMarkdown(content);
+
+  // Helper to apply highlighting to children
+  const hl = (children: ReactNode): ReactNode => {
+    if (highlightTerm) {
+      return highlightTextInChildren(children, highlightTerm);
+    }
+    return children;
+  };
 
   return (
     <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
@@ -252,7 +364,7 @@ export default function MarkdownRenderer({
             if (callout) {
               return (
                 <CalloutBlock type={callout.type} title={callout.title}>
-                  {callout.content}
+                  {hl(callout.content)}
                 </CalloutBlock>
               );
             }
@@ -263,7 +375,7 @@ export default function MarkdownRenderer({
                 className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4"
                 {...props}
               >
-                {children}
+                {hl(children)}
               </blockquote>
             );
           },
@@ -301,20 +413,20 @@ export default function MarkdownRenderer({
           // Style headings
           h1: ({ children, ...props }) => (
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-4" {...props}>
-              {children}
+              {hl(children)}
             </h1>
           ),
           h2: ({ children, ...props }) => (
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-5 mb-3" {...props}>
-              {children}
+              {hl(children)}
             </h2>
           ),
           h3: ({ children, ...props }) => (
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2" {...props}>
-              {children}
+              {hl(children)}
             </h3>
           ),
-          // Style lists
+          // Style lists - apply highlighting to list items
           ul: ({ children, ...props }) => (
             <ul className="list-disc list-outside pl-5 space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
               {children}
@@ -325,6 +437,9 @@ export default function MarkdownRenderer({
               {children}
             </ol>
           ),
+          li: ({ children, ...props }) => (
+            <li {...props}>{hl(children)}</li>
+          ),
           // Style links
           a: ({ children, href, ...props }) => (
             <a
@@ -334,19 +449,19 @@ export default function MarkdownRenderer({
               rel="noopener noreferrer"
               {...props}
             >
-              {children}
+              {hl(children)}
             </a>
           ),
           // Style paragraphs
           p: ({ children, ...props }) => (
             <p className="my-2 leading-relaxed text-gray-700 dark:text-gray-300" {...props}>
-              {children}
+              {hl(children)}
             </p>
           ),
           // Style strong/bold
           strong: ({ children, ...props }) => (
             <strong className="font-semibold text-gray-900 dark:text-gray-100" {...props}>
-              {children}
+              {hl(children)}
             </strong>
           ),
           // Style tables
@@ -359,12 +474,12 @@ export default function MarkdownRenderer({
           ),
           th: ({ children, ...props }) => (
             <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 px-4 py-2 text-left font-semibold text-gray-900 dark:text-gray-100" {...props}>
-              {children}
+              {hl(children)}
             </th>
           ),
           td: ({ children, ...props }) => (
             <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-700 dark:text-gray-300" {...props}>
-              {children}
+              {hl(children)}
             </td>
           ),
         }}

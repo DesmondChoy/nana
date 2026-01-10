@@ -22,6 +22,8 @@ interface NotesPanelProps {
   sessionId?: string;
   // For note editing
   onUpdateNotes?: (markdown: string) => void;
+  // For search highlighting
+  highlightTerm?: string | null;
 }
 
 // Skeleton loader component
@@ -96,6 +98,7 @@ export default function NotesPanel({
   userProfile,
   sessionId,
   onUpdateNotes,
+  highlightTerm,
 }: NotesPanelProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExecutingCommand, setIsExecutingCommand] = useState(false);
@@ -314,7 +317,7 @@ export default function NotesPanel({
           placeholder="Edit your notes here (Markdown supported)..."
         />
       ) : (
-        <MarkdownRenderer content={notes.markdown} />
+        <MarkdownRenderer content={notes.markdown} highlightTerm={highlightTerm} />
       )}
 
       {/* Expansions */}

@@ -127,6 +127,31 @@
     );
   }
 
+  /* Search highlight for matched text in content */
+  .search-highlight {
+    @apply bg-yellow-300/50 rounded px-0.5;
+  }
+
+  .dark .search-highlight {
+    @apply bg-yellow-500/40;
+  }
+
+  /* Search bar entrance animation */
+  @keyframes searchSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-search-slide-in {
+    animation: searchSlideIn var(--duration-fast) var(--ease-out) forwards;
+  }
+
   /* Fade in animation */
   @keyframes fadeIn {
     from {
