@@ -8,6 +8,7 @@
 - 🧮 **LaTeX Math Rendering** - Displays mathematical notation beautifully using KaTeX
 - 📝 **Markdown Notes** - Rich formatting with Obsidian-style callouts (note, warning, tip, etc.)
 - 🔍 **Inline Commands** - Select text to elaborate, simplify, or get analogies tailored to your background
+- 🔎 **Text Search** - Find text across notes with result highlighting
 - 📤 **Export Notes** - Download all generated notes as a single markdown file with table of contents
 - 🌓 **Dark Mode** - Toggle theme with system preference detection
 - ↔️ **Resizable Layout** - Drag divider to adjust PDF/notes split (double-click to reset)
@@ -155,7 +156,7 @@ With the backend running, visit `http://localhost:8000/docs` for interactive API
 ### Keyboard Shortcuts
 
 While studying in the dual-pane view:
-- `←` or `↑` - Previous page
-- `→` or `↓` - Next page
+- `←` / `→` - Previous/Next page
+- `↑` / `↓` - Scroll notes panel
 
 (Shortcuts are disabled when typing in input fields)
