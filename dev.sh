@@ -16,6 +16,11 @@ echo "Starting NANA (Not Another Note App)..."
 
 # 1. Start Backend
 echo "Starting Backend (FastAPI)..."
+if [ ! -f ".venv/bin/activate" ]; then
+    echo "Missing Python virtualenv."
+    echo "Run: uv venv && source .venv/bin/activate && uv pip install -e ."
+    exit 1
+fi
 source .venv/bin/activate
 cd backend
 python -m app.main > ../backend.log 2>&1 &
