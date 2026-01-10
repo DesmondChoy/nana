@@ -41,6 +41,10 @@ export default function StudyPage() {
   const [headerShadow, setHeaderShadow] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
+  // Refs for notes scroll containers (separate for desktop and mobile since both are in DOM)
+  const desktopNotesScrollRef = useRef<HTMLDivElement>(null);
+  const mobileNotesScrollRef = useRef<HTMLDivElement>(null);
+
   // Mobile tab state
   const [mobileActiveTab, setMobileActiveTab] = useState<'pdf' | 'notes'>('notes');
 
@@ -232,6 +236,12 @@ export default function StudyPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentPage, handlePageChange]);
+
+  // Reset notes scroll position when page changes
+  useEffect(() => {
+    desktopNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    mobileNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [currentPage]);
 
   const handleReset = useCallback(() => {
     clearPDF();
@@ -429,7 +439,7 @@ export default function StudyPage() {
           />
 
           {/* Right Pane - Notes */}
-          <div className="flex-1 bg-white dark:bg-gray-800 overflow-auto">
+          <div ref={desktopNotesScrollRef} className="flex-1 bg-white dark:bg-gray-800 overflow-auto">
             <NotesPanel
               pageNumber={currentPage}
               notes={currentNotes?.notes ?? null}
@@ -468,7 +478,7 @@ export default function StudyPage() {
                 />
               </div>
             ) : (
-              <div className="h-full bg-white dark:bg-gray-800 overflow-auto">
+              <div ref={mobileNotesScrollRef} className="h-full bg-white dark:bg-gray-800 overflow-auto">
                 <NotesPanel
                   pageNumber={currentPage}
                   notes={currentNotes?.notes ?? null}
