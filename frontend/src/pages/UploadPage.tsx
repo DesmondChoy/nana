@@ -273,7 +273,7 @@ function CachedSessionBanner({
   const pageCountText = cachedTotalPages ? ` of ${cachedTotalPages}` : '';
 
   return (
-    <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+    <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-blue-800 dark:text-blue-200 font-medium">
@@ -558,17 +558,6 @@ export default function UploadPage() {
             <ApiKeyInput />
           </div>
 
-          {/* Cached Session Banner */}
-          {cachedFilename && cachedPagesCount > 0 && (
-            <CachedSessionBanner
-              cachedFilename={cachedFilename}
-              cachedPagesCount={cachedPagesCount}
-              cachedTotalPages={cachedTotalPages}
-              onImportSelect={handleImportSelect}
-              onClearCache={clearNotesCache}
-            />
-          )}
-
           {/* Main Form Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-4 sm:p-6 space-y-5 sm:space-y-6 border border-gray-100 dark:border-gray-700">
             {/* Section header with progress */}
@@ -728,6 +717,17 @@ export default function UploadPage() {
                 )}
               </div>
             </div>
+
+            {/* Cached Session Banner */}
+            {cachedFilename && cachedPagesCount > 0 && (
+              <CachedSessionBanner
+                cachedFilename={cachedFilename}
+                cachedPagesCount={cachedPagesCount}
+                cachedTotalPages={cachedTotalPages}
+                onImportSelect={handleImportSelect}
+                onClearCache={clearNotesCache}
+              />
+            )}
 
             {/* Submit Button */}
             <button
