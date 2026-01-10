@@ -7,18 +7,45 @@ Returns rich markdown content with Obsidian-style callouts plus metadata for top
 """
 
 import logging
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from google import genai
 from google.genai import types
-import time
 
 from app.config import Settings, get_gemini_client, get_settings
-from app.schemas import NotesRequest, NotesResponse
 from app.debug import DebugLogger
+from app.schemas import NotesRequest, NotesResponse
 
 logger = logging.getLogger(__name__)
+
+# Log startup message to indicate logging behavior
+logger.info(
+    "[notes] Router initialized. Only errors will be logged; successful requests are silent."
+)
+
+
+def log_notes_request(
+    page_number: int,
+    session_id: str | None,
+    duration_seconds: float,
+    success: bool,
+    _token_count: int | None = None,
+    error: str | None = None,
+) -> None:
+    """
+    Log notes generation request to stdout for production visibility.
+
+    Only errors are logged to keep production logs clean.
+    Successful requests are silent.
+    """
+    if not success and error:
+        logger.error(
+            f"[notes] FAILED page={page_number} session={session_id} "
+            f"duration={duration_seconds:.2f}s error={error}"
+        )
+
 
 router = APIRouter()
 
@@ -32,6 +59,7 @@ def load_prompt_template(filename: str) -> str:
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
     return prompt_path.read_text(encoding="utf-8")
+
 
 @router.post("/notes", response_model=NotesResponse)
 async def generate_notes(
@@ -50,7 +78,9 @@ async def generate_notes(
     # Format Previous Page Context
     previous_page_text = ""
     if request.previous_page:
-        previous_page_text = f"--- Page {request.previous_page.page_number} ---\n{request.previous_page.text}"
+        previous_page_text = (
+            f"--- Page {request.previous_page.page_number} ---\n{request.previous_page.text}"
+        )
     else:
         previous_page_text = "(No previous page - this is page 1)"
 
@@ -74,10 +104,10 @@ async def generate_notes(
             page_number=request.current_page.page_number,
             page_text=request.current_page.text,
             previous_page_text=previous_page_text,
-            previous_notes_text=request.previous_notes_context or "(None)"
+            previous_notes_text=request.previous_notes_context or "(None)",
         )
     except KeyError as e:
-         raise HTTPException(status_code=500, detail=f"Prompt formatting error: Missing key {e}")
+        raise HTTPException(status_code=500, detail=f"Prompt formatting error: Missing key {e}")
 
     debug_logger = DebugLogger()
     start_time = time.time()
@@ -90,7 +120,7 @@ async def generate_notes(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=NotesResponse,
-                temperature=0.2 
+                temperature=0.2,
             ),
         )
         # Log successful interaction
@@ -100,32 +130,51 @@ async def generate_notes(
             response=response,
             start_time=start_time,
             end_time=time.time(),
-            session_id=request.session_id
+            session_id=request.session_id,
         )
     except Exception as e:
+        end_time = time.time()
         # Log failed interaction
         debug_logger.log_interaction(
             name="notes_generation",
             prompt=filled_prompt,
             response=None,
             start_time=start_time,
-            end_time=time.time(),
+            end_time=end_time,
             error=str(e),
-            session_id=request.session_id
+            session_id=request.session_id,
         )
-        logger.error(
-            f"[Page {request.current_page.page_number}] Gemini API error: {e}"
+        log_notes_request(
+            page_number=request.current_page.page_number,
+            session_id=request.session_id,
+            duration_seconds=end_time - start_time,
+            success=False,
+            error=str(e),
         )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
+    end_time = time.time()
     parsed = response.parsed
     if not isinstance(parsed, NotesResponse):
-        # Log schema validation failure with raw response for debugging
-        raw_text = getattr(response, 'text', None)
-        logger.error(
-            f"[Page {request.current_page.page_number}] Schema validation failed. "
-            f"Expected NotesResponse, got {type(parsed).__name__}. "
-            f"Raw response: {raw_text[:500] if raw_text else 'N/A'}..."
+        log_notes_request(
+            page_number=request.current_page.page_number,
+            session_id=request.session_id,
+            duration_seconds=end_time - start_time,
+            success=False,
+            error=f"Schema validation failed: got {type(parsed).__name__}",
         )
         raise HTTPException(status_code=500, detail="Gemini response did not match expected schema")
+
+    # Extract token count for logging
+    token_count = None
+    if hasattr(response, "usage_metadata") and response.usage_metadata:
+        token_count = getattr(response.usage_metadata, "total_token_count", None)
+
+    log_notes_request(
+        page_number=request.current_page.page_number,
+        session_id=request.session_id,
+        duration_seconds=end_time - start_time,
+        success=True,
+        _token_count=token_count,
+    )
     return parsed

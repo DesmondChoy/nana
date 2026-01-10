@@ -5,17 +5,46 @@ Handles PDF file uploads and extracts page-wise text using Gemini 3 Flash.
 Uses inline upload (no Files API) for simplicity.
 """
 
+import logging
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
-import time
 
 from app.config import Settings, get_gemini_client, get_settings
-from app.schemas import PageContent
 from app.debug import DebugLogger
+from app.schemas import PageContent
+
+logger = logging.getLogger(__name__)
+
+# Log startup message to indicate logging behavior
+logger.info(
+    "[upload] Router initialized. Only errors will be logged; successful uploads are silent."
+)
+
+
+def log_upload_request(
+    filename: str,
+    file_size_mb: float,
+    session_id: str,
+    duration_seconds: float,
+    success: bool,
+    error: str | None = None,
+) -> None:
+    """
+    Log upload request to stdout for production visibility.
+
+    Only errors are logged to keep production logs clean.
+    Successful uploads are silent.
+    """
+    if not success and error:
+        logger.error(
+            f"[upload] FAILED file={filename} size={file_size_mb:.2f}MB "
+            f"session={session_id} duration={duration_seconds:.2f}s error={error}"
+        )
 
 
 router = APIRouter()
@@ -23,6 +52,7 @@ router = APIRouter()
 
 class PDFExtractionResponse(BaseModel):
     """Structure for the LLM response."""
+
     pages: list[PageContent]
 
 
@@ -62,6 +92,7 @@ async def upload_and_parse_pdf(
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
     pdf_bytes = await file.read()
+    file_size_mb = len(pdf_bytes) / (1024 * 1024)
 
     # Check size limit (50MB)
     if len(pdf_bytes) > 50 * 1024 * 1024:
@@ -99,26 +130,44 @@ async def upload_and_parse_pdf(
             response=response,
             start_time=start_time,
             end_time=time.time(),
-            session_id=session_id
+            session_id=session_id,
         )
     except Exception as e:
+        end_time = time.time()
         # Log failed interaction
         debug_logger.log_interaction(
             name="pdf_extraction",
             prompt=f"Extract text/tables/images from {file.filename}",
             response=None,
             start_time=start_time,
-            end_time=time.time(),
+            end_time=end_time,
             error=str(e),
-            session_id=session_id
+            session_id=session_id,
+        )
+        log_upload_request(
+            filename=file.filename,
+            file_size_mb=file_size_mb,
+            session_id=session_id,
+            duration_seconds=end_time - start_time,
+            success=False,
+            error=str(e),
         )
         raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
 
     # Parse the JSON response
+    end_time = time.time()
     try:
         parsed_response: PDFExtractionResponse = response.parsed
         pages = parsed_response.pages
     except Exception as e:
+        log_upload_request(
+            filename=file.filename,
+            file_size_mb=file_size_mb,
+            session_id=session_id,
+            duration_seconds=end_time - start_time,
+            success=False,
+            error=f"Parse error: {e}",
+        )
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse Gemini response: {e}",
