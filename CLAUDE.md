@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-NANA (Not Another Note App) is an AI-powered study assistant that transforms PDFs into personalized learning notes using Google's Gemini API. It uses a two-phase pipeline:
+NANA (Not Another Note-Taking App) is an AI-powered study assistant that transforms PDFs into personalized learning notes using Google's Gemini API. It uses a two-phase pipeline:
 - **Phase 1 (Upload)**: Entire PDF sent to Gemini to extract text and structure per page
 - **Phase 2 (Study)**: Lightweight text payloads sent per page for notes generation with user profile adaptation
 
@@ -39,7 +39,7 @@ npm run lint                      # ESLint
 Create `.env` in project root:
 ```bash
 GOOGLE_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.0-flash     # Optional, defaults to gemini-2.0-flash
+GEMINI_MODEL=gemini-3-flash-preview  # Optional, defaults to gemini-3-flash-preview
 ```
 
 ## Architecture
@@ -69,7 +69,7 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 
 ### Prompts (`prompts/`)
 - `notes_generation.md` - Per-page notes template with mastery adaptation
-- `inline_commands/` - Templates for elaborate, simplify, analogy, diagram (Phase 5)
+- `inline_commands/` - Templates for elaborate, simplify, analogy
 
 ## Key Design Decisions
 
@@ -82,7 +82,7 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 
 - **Backend**: FastAPI, Uvicorn, google-genai SDK, Pydantic
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Zustand, react-pdf, TanStack Query
-- **AI**: Google Gemini API (gemini-2.0-flash)
+- **AI**: Google Gemini API (gemini-3-flash-preview)
 
 ## Code Style
 
