@@ -253,6 +253,63 @@ function RadioGroupField({ label, value, onChange, options }: RadioGroupFieldPro
   );
 }
 
+// Cached session banner component - extracted for clarity
+interface CachedSessionBannerProps {
+  cachedFilename: string;
+  cachedPagesCount: number;
+  cachedTotalPages: number | null;
+  onImportSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearCache: () => void;
+}
+
+function CachedSessionBanner({
+  cachedFilename,
+  cachedPagesCount,
+  cachedTotalPages,
+  onImportSelect,
+  onClearCache,
+}: CachedSessionBannerProps): React.ReactElement {
+  const isComplete = cachedTotalPages !== null && cachedPagesCount >= cachedTotalPages;
+  const pageCountText = cachedTotalPages ? ` of ${cachedTotalPages}` : '';
+
+  return (
+    <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-blue-800 dark:text-blue-200 font-medium">
+            {isComplete ? 'Complete session cached!' : 'Resume previous session?'}
+          </p>
+          <p className="text-blue-600 dark:text-blue-300 text-sm mt-1">
+            Found {cachedPagesCount}{pageCountText} cached notes for "{cachedFilename}"
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <label className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors cursor-pointer">
+            Import notes
+            <input
+              type="file"
+              accept=".md,.markdown"
+              className="hidden"
+              onChange={onImportSelect}
+            />
+          </label>
+          <button
+            onClick={onClearCache}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
+          >
+            Clear cache
+          </button>
+        </div>
+      </div>
+      <p className="text-blue-600 dark:text-blue-300 text-sm mt-2">
+        {isComplete
+          ? 'Re-upload the same file to continue instantly (no API call needed).'
+          : 'Re-upload the same file to continue where you left off.'}
+      </p>
+    </div>
+  );
+}
+
 export default function UploadPage() {
   const setProfile = useUserStore((state) => state.setProfile);
   const existingProfile = useUserStore((state) => state.profile);
@@ -395,6 +452,28 @@ export default function UploadPage() {
     }
   }, []);
 
+  // Perform the actual import (defined before handleImportSelect which uses it)
+  const performImport = useCallback(
+    (content: string) => {
+      const importedNotes = parseMarkdownImport(content);
+      const importedCount = Object.keys(importedNotes).length;
+
+      if (importedCount === 0) {
+        toast.error('No notes found in the import file.');
+        return;
+      }
+
+      importNotesFromMarkdown(importedNotes);
+      toast.success(`Imported notes for ${importedCount} pages`);
+
+      // Reset import state
+      setImportFileContent(null);
+      setImportValidation(null);
+      setShowImportWarning(false);
+    },
+    [importNotesFromMarkdown, toast]
+  );
+
   // Handle import file selection
   const handleImportSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -434,29 +513,7 @@ export default function UploadPage() {
         console.error('Import file read error:', error);
       }
     },
-    [cachedContentHash, cachedTotalPages, toast]
-  );
-
-  // Perform the actual import
-  const performImport = useCallback(
-    (content: string) => {
-      const importedNotes = parseMarkdownImport(content);
-      const importedCount = Object.keys(importedNotes).length;
-
-      if (importedCount === 0) {
-        toast.error('No notes found in the import file.');
-        return;
-      }
-
-      importNotesFromMarkdown(importedNotes);
-      toast.success(`Imported notes for ${importedCount} pages`);
-
-      // Reset import state
-      setImportFileContent(null);
-      setImportValidation(null);
-      setShowImportWarning(false);
-    },
-    [importNotesFromMarkdown, toast]
+    [cachedContentHash, cachedTotalPages, toast, performImport]
   );
 
   // Handle import warning modal actions
@@ -503,42 +560,13 @@ export default function UploadPage() {
 
           {/* Cached Session Banner */}
           {cachedFilename && cachedPagesCount > 0 && (
-            <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-800 dark:text-blue-200 font-medium">
-                    {cachedTotalPages && cachedPagesCount >= cachedTotalPages
-                      ? 'Complete session cached!'
-                      : 'Resume previous session?'}
-                  </p>
-                  <p className="text-blue-600 dark:text-blue-300 text-sm mt-1">
-                    Found {cachedPagesCount}{cachedTotalPages ? ` of ${cachedTotalPages}` : ''} cached notes for "{cachedFilename}"
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <label className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors cursor-pointer">
-                    Import notes
-                    <input
-                      type="file"
-                      accept=".md,.markdown"
-                      className="hidden"
-                      onChange={handleImportSelect}
-                    />
-                  </label>
-                  <button
-                    onClick={clearNotesCache}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
-                  >
-                    Clear cache
-                  </button>
-                </div>
-              </div>
-              <p className="text-blue-600 dark:text-blue-300 text-sm mt-2">
-                {cachedTotalPages && cachedPagesCount >= cachedTotalPages
-                  ? 'Re-upload the same file to continue instantly (no API call needed).'
-                  : 'Re-upload the same file to continue where you left off.'}
-              </p>
-            </div>
+            <CachedSessionBanner
+              cachedFilename={cachedFilename}
+              cachedPagesCount={cachedPagesCount}
+              cachedTotalPages={cachedTotalPages}
+              onImportSelect={handleImportSelect}
+              onClearCache={clearNotesCache}
+            />
           )}
 
           {/* Main Form Card */}

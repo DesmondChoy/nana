@@ -340,7 +340,7 @@ export const usePDFStore = create<PDFState>()(
           if (!existingNotes) return state;
 
           const newExpansion: Expansion = {
-            id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: `exp-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
             command_type: response.command_type,
             selected_text: selectedText,
             content: response.content,

@@ -36,11 +36,6 @@ const LABEL_TO_COMMAND_TYPE: Record<string, InlineCommandType> = {
 /**
  * Parse YAML frontmatter from Markdown content.
  * Simple parser that handles our specific format without external dependencies.
- *
- * TODO(human): Implement the YAML frontmatter parsing logic.
- * The frontmatter is delimited by --- at the start and end.
- * Each line is in the format: key: value
- * Numbers should be parsed as integers.
  */
 function parseFrontmatter(content: string): MarkdownFrontmatter | null {
   // Match frontmatter block: starts with ---, ends with ---
@@ -160,7 +155,7 @@ function parseExpansion(blockquote: string): Expansion | null {
   if (!content) return null;
 
   return {
-    id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `imported-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     command_type: commandType,
     selected_text: selectedText,
     content,
