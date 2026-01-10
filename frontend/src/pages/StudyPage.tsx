@@ -243,10 +243,9 @@ export default function StudyPage() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Handle Cmd+F / Ctrl+F for search (works even in input fields)
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
-
-      if (cmdOrCtrl && event.key === 'f') {
+      // Check both metaKey (Cmd on Mac) and ctrlKey (Ctrl on Windows/Linux)
+      // Avoid navigator.platform which is deprecated and unreliable in production
+      if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
         event.preventDefault();
         openSearch();
         return;
