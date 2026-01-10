@@ -8,7 +8,9 @@ import { generateNotes, logCacheHits } from '../api/client';
 import { generateMarkdownExport, downloadMarkdown, getExportFilename } from '../utils';
 import { useToast } from '../hooks/useToast';
 import { useResizablePanes } from '../hooks/useResizablePanes';
+import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import ResizeDivider from '../components/ResizeDivider';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export default function StudyPage() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
@@ -56,6 +58,22 @@ export default function StudyPage() {
     handleDoubleClick: handleDividerDoubleClick,
     containerRef: resizableContainerRef,
   } = useResizablePanes();
+
+  // Navigation guard to prevent accidental data loss
+  const handleReset = useCallback(() => {
+    clearPDF();
+    clearProfile();
+  }, [clearPDF, clearProfile]);
+
+  const {
+    showModal: showLeaveModal,
+    handleStay,
+    handleLeave,
+    requestLeave,
+  } = useNavigationGuard({
+    enabled: !!parsedPDF,
+    onConfirmLeave: handleReset,
+  });
 
   // Eager sequential notes generation
   useEffect(() => {
@@ -251,11 +269,6 @@ export default function StudyPage() {
     mobileNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [currentPage]);
 
-  const handleReset = useCallback(() => {
-    clearPDF();
-    clearProfile();
-  }, [clearPDF, clearProfile]);
-
   // Export functionality
   const { toast } = useToast();
 
@@ -393,7 +406,7 @@ export default function StudyPage() {
           </button>
 
           <button
-            onClick={handleReset}
+            onClick={requestLeave}
             className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors hidden sm:block"
           >
             Upload New PDF
@@ -401,7 +414,7 @@ export default function StudyPage() {
 
           {/* Mobile: icon button for reset */}
           <button
-            onClick={handleReset}
+            onClick={requestLeave}
             className="sm:hidden p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             title="Upload New PDF"
           >
@@ -580,6 +593,18 @@ export default function StudyPage() {
           <span className="sm:hidden">→</span>
         </button>
       </footer>
+
+      {/* Navigation confirmation modal */}
+      <ConfirmationModal
+        isOpen={showLeaveModal}
+        title="Leave Study Session?"
+        message="You'll lose your current study session. Generated notes are cached, but you'll need to re-upload the PDF to continue."
+        confirmLabel="Leave"
+        cancelLabel="Stay"
+        onConfirm={handleLeave}
+        onCancel={handleStay}
+        variant="warning"
+      />
     </div>
   );
 }
