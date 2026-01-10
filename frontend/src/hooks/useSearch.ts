@@ -89,15 +89,20 @@ export function useSearch() {
 
   // Determine which pages to search based on scope
   const pagesToSearch = useMemo(() => {
-    if (!parsedPDF) return [];
-
     if (filters.scope === 'current') {
       return [currentPage];
     }
 
-    // 'all' scope: search all pages
-    return Array.from({ length: parsedPDF.total_pages }, (_, i) => i + 1);
-  }, [parsedPDF, filters.scope, currentPage]);
+    // 'all' scope: determine total pages from available sources
+    if (parsedPDF) {
+      return Array.from({ length: parsedPDF.total_pages }, (_, i) => i + 1);
+    }
+
+    // Fallback when resuming from cache (parsedPDF is null)
+    // Use notesCache keys to determine which pages exist
+    const cachedPages = Object.keys(notesCache).map(Number).sort((a, b) => a - b);
+    return cachedPages.length > 0 ? cachedPages : [];
+  }, [parsedPDF, notesCache, filters.scope, currentPage]);
 
   // The main search function
   const executeSearch = useCallback(() => {
