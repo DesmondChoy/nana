@@ -224,12 +224,20 @@ export default function StudyPage() {
         return;
       }
 
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      if (event.key === 'ArrowLeft') {
         event.preventDefault();
         handlePageChange(currentPage - 1);
-      } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      } else if (event.key === 'ArrowRight') {
         event.preventDefault();
         handlePageChange(currentPage + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        desktopNotesScrollRef.current?.scrollBy({ top: -100, behavior: 'smooth' });
+        mobileNotesScrollRef.current?.scrollBy({ top: -100, behavior: 'smooth' });
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        desktopNotesScrollRef.current?.scrollBy({ top: 100, behavior: 'smooth' });
+        mobileNotesScrollRef.current?.scrollBy({ top: 100, behavior: 'smooth' });
       }
     };
 
