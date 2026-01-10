@@ -325,6 +325,129 @@ await page.evaluate(() => {
 
 ---
 
+### Phase 6: New Features Testing
+
+This phase covers features added recently that require dedicated testing.
+
+#### Text Search (Cmd/Ctrl+F)
+- [ ] Search bar appears when pressing Cmd/Ctrl+F
+- [ ] Search input accepts text and updates results live
+- [ ] Matching text is highlighted in the notes panel
+- [ ] Result count is displayed (e.g., "3 of 12 matches")
+- [ ] Up/Down arrows or Enter navigate between matches
+- [ ] Current match is visually distinct from other matches
+- [ ] Search persists when navigating between pages
+- [ ] Pressing Escape or clicking X clears search and highlights
+- [ ] Search works with special characters and math content
+
+#### Markdown Export
+- [ ] Export button is visible on Study page header
+- [ ] Clicking export triggers file download
+- [ ] Downloaded file has .md extension
+- [ ] Exported markdown includes all pages with generated notes
+- [ ] Toast notification confirms successful export
+- [ ] Exported content preserves formatting (headers, lists, callouts)
+- [ ] Inline expansions are included in export
+
+#### Markdown Import
+- [ ] Import button is visible on Study page header
+- [ ] Clicking import opens file picker for .md files
+- [ ] Importing valid markdown file updates notes
+- [ ] Content hash validation warning appears for mismatched PDF
+- [ ] Import warning modal has Confirm/Cancel options
+- [ ] Successful import shows toast notification
+- [ ] Imported notes display correctly with formatting preserved
+
+#### Inline Notes Editing
+- [ ] Edit button/toggle is visible on notes panel
+- [ ] Clicking edit switches to markdown editor view
+- [ ] Editor shows raw markdown content
+- [ ] Changes auto-save after typing pause
+- [ ] Edited content renders correctly after exiting edit mode
+- [ ] Edit mode persists for current page during navigation
+- [ ] Cancel/Escape discards unsaved changes (if applicable)
+- [ ] Edited notes persist after browser refresh
+
+#### Inline Expansion Editing
+- [ ] Edit button appears on expansion blocks in edit mode
+- [ ] Clicking edit shows expansion markdown editor
+- [ ] Changes to expansion content save correctly
+- [ ] Edited expansions render correctly after saving
+- [ ] Multiple expansions can be edited in same session
+
+#### Dark Mode Toggle
+- [ ] Theme toggle button is visible (sun/moon icon)
+- [ ] Clicking toggle switches between light and dark themes
+- [ ] Dark mode applies to all components:
+  - [ ] Upload page background and forms
+  - [ ] Study page PDF viewer and notes panel
+  - [ ] Selection toolbar
+  - [ ] Modals and dialogs
+  - [ ] Toast notifications
+- [ ] Theme preference persists in localStorage
+- [ ] Theme respects system preference on first load (if applicable)
+- [ ] Text remains readable in both themes
+- [ ] Callout colors are distinguishable in dark mode
+
+#### Toast Notifications
+- [ ] Toast appears for successful actions (export, import, etc.)
+- [ ] Toast has appropriate styling (success/error variants)
+- [ ] Toast auto-dismisses after timeout (~3-5 seconds)
+- [ ] Multiple toasts stack correctly
+- [ ] Toast doesn't block interaction with app
+- [ ] Toast is accessible (proper contrast, role="alert")
+
+#### Resizable Pane Divider
+- [ ] Vertical divider is visible between PDF and notes panes
+- [ ] Cursor changes to resize cursor on hover
+- [ ] Click-and-drag resizes panes
+- [ ] Pane width constraints prevent collapsing either pane
+- [ ] Pane sizes persist during page navigation
+- [ ] Double-click resets to default 50/50 split (if implemented)
+
+#### Navigation Confirmation Dialog
+- [ ] Dialog appears when clicking "New PDF" with unsaved changes
+- [ ] Dialog appears when navigating away from Study page
+- [ ] Dialog message explains unsaved changes will be lost
+- [ ] "Cancel" button returns to Study page
+- [ ] "Confirm" button proceeds with navigation
+- [ ] Dialog is accessible (focus trap, keyboard navigation)
+
+#### BYOK API Key Input
+- [ ] API key input field is visible on Upload page
+- [ ] Placeholder text explains the field purpose
+- [ ] Key input is masked/hidden for security
+- [ ] Key saves to localStorage on valid entry
+- [ ] Saved key auto-fills on subsequent visits
+- [ ] Invalid key shows error feedback
+- [ ] Key is sent with API requests when provided
+
+#### Open-Ended Profile Fields
+- [ ] Text area for "Expertise Background" is visible
+- [ ] Text area for "Learning Goals" is visible
+- [ ] Character limit or guidance is shown (if applicable)
+- [ ] Text persists in localStorage
+- [ ] Profile text is included in API requests
+- [ ] Long text doesn't break layout
+
+#### Bug Fix Regression Tests
+These tests verify that previously fixed bugs haven't regressed:
+
+**List Marker Formatting** (fix: `7551745`)
+- [ ] Bold text at start of list item stays on same line as bullet marker
+- [ ] Nested lists with bold text render correctly
+
+**Arrow Key Behavior** (fix: `f105327`)
+- [ ] Up/Down arrow keys scroll notes panel content
+- [ ] Left/Right arrow keys navigate between pages
+- [ ] Arrow keys work correctly when notes panel has focus
+
+**Cross-Platform Keyboard Shortcuts** (fix: `e3e70be`)
+- [ ] Cmd+F (Mac) and Ctrl+F (Windows/Linux) both open search
+- [ ] Keyboard shortcuts work in all browsers (Chrome, Firefox, Safari)
+
+---
+
 ## Quick Smoke Test Checklist
 
 For rapid testing, verify these critical paths:
@@ -337,6 +460,10 @@ For rapid testing, verify these critical paths:
 6. [ ] Can execute one inline command successfully
 7. [ ] Notes scroll and display markdown correctly
 8. [ ] No console errors throughout
+9. [ ] Text search (Cmd/Ctrl+F) opens and highlights matches
+10. [ ] Dark mode toggle switches theme correctly
+11. [ ] Pane divider can be dragged to resize
+12. [ ] Edit mode allows modifying notes
 
 ---
 
@@ -396,10 +523,24 @@ When instructed to perform Playwright testing, follow this workflow:
 
    PHASE 5: Performance (4 items)
 
+   PHASE 6: New Features Testing
+   └── Text Search (9 items)
+   └── Markdown Export (7 items)
+   └── Markdown Import (7 items)
+   └── Inline Notes Editing (8 items)
+   └── Inline Expansion Editing (5 items)
+   └── Dark Mode Toggle (10 items)
+   └── Toast Notifications (6 items)
+   └── Resizable Pane Divider (6 items)
+   └── Navigation Confirmation Dialog (6 items)
+   └── BYOK API Key Input (7 items)
+   └── Open-Ended Profile Fields (6 items)
+   └── Bug Fix Regression Tests (7 items)
+
 4. For each item: test → document result (✅/❌) → if failed, STOP and fix
 5. Provide final summary report with all results
 ```
 
-**Total checklist items**: ~94 items (varies based on pages tested)
+**Total checklist items**: ~178 items (varies based on pages tested)
 
 **Minimum testing time estimate**: Allow for iterative testing as bugs may require fixes and re-verification.
