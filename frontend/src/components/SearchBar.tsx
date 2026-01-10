@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useSearchStore, type SearchResult } from '../stores/searchStore';
 import { useSearch } from '../hooks/useSearch';
-import { usePDFStore } from '../stores/pdfStore';
 
 interface SearchBarProps {
   onNavigateToResult: (pageNumber: number, source: 'pdf' | 'notes' | 'expansion') => void;
