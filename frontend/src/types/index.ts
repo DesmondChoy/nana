@@ -45,6 +45,7 @@ export interface ParsedPDF {
   total_pages: number;
   pages: PageContent[];
   session_id: string; // Unique ID for this upload session (for debug log grouping)
+  content_hash: string; // SHA-256 hash of PDF bytes (first 16 hex chars) for import matching
 }
 
 // Notes types - mirrors backend NotesResponse (markdown format)

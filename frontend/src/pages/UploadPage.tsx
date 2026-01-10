@@ -5,6 +5,9 @@ import { uploadPDF } from '../api/client';
 import StorageWarning from '../components/StorageWarning';
 import ThemeToggle from '../components/ThemeToggle';
 import ApiKeyInput from '../components/ApiKeyInput';
+import { ImportWarningModal } from '../components/ImportWarningModal';
+import { validateImport, parseMarkdownImport, type ImportValidation } from '../utils';
+import { useToast } from '../hooks/useToast';
 import type {
   UserProfile,
   MathComfort,
@@ -267,6 +270,9 @@ export default function UploadPage() {
   // API Key state
   const hasValidApiKey = useApiKeyStore((state) => state.apiKey && state.isValidated);
 
+  const cachedContentHash = usePDFStore((state) => state.cachedContentHash);
+  const importNotesFromMarkdown = usePDFStore((state) => state.importNotesFromMarkdown);
+
   const cachedPagesCount = Object.keys(notesCache).length;
 
   const [formData, setFormData] = useState<Partial<UserProfile>>(existingProfile || {});
@@ -274,6 +280,13 @@ export default function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Import notes state
+  const [importFileContent, setImportFileContent] = useState<string | null>(null);
+  const [importValidation, setImportValidation] = useState<ImportValidation | null>(null);
+  const [showImportWarning, setShowImportWarning] = useState(false);
+
+  const { toast } = useToast();
 
   const handleUpload = useCallback(async (file: File) => {
     // Create blob URL before starting upload
@@ -382,6 +395,83 @@ export default function UploadPage() {
     }
   }, []);
 
+  // Handle import file selection
+  const handleImportSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Reset input so the same file can be selected again
+      e.target.value = '';
+
+      // Check if we have the content hash for validation
+      if (!cachedContentHash || !cachedTotalPages) {
+        toast.error('Please upload a PDF first before importing notes.');
+        return;
+      }
+
+      try {
+        const content = await file.text();
+        const validation = validateImport(content, cachedContentHash, cachedTotalPages);
+
+        setImportFileContent(content);
+        setImportValidation(validation);
+
+        if (!validation.isValid) {
+          toast.error(validation.error || 'Invalid import file');
+          return;
+        }
+
+        if (!validation.hashMatches || !validation.pageCountMatches) {
+          // Show warning modal
+          setShowImportWarning(true);
+        } else {
+          // Exact match - import directly
+          performImport(content);
+        }
+      } catch (error) {
+        toast.error('Failed to read the import file.');
+        console.error('Import file read error:', error);
+      }
+    },
+    [cachedContentHash, cachedTotalPages, toast]
+  );
+
+  // Perform the actual import
+  const performImport = useCallback(
+    (content: string) => {
+      const importedNotes = parseMarkdownImport(content);
+      const importedCount = Object.keys(importedNotes).length;
+
+      if (importedCount === 0) {
+        toast.error('No notes found in the import file.');
+        return;
+      }
+
+      importNotesFromMarkdown(importedNotes);
+      toast.success(`Imported notes for ${importedCount} pages`);
+
+      // Reset import state
+      setImportFileContent(null);
+      setImportValidation(null);
+      setShowImportWarning(false);
+    },
+    [importNotesFromMarkdown, toast]
+  );
+
+  // Handle import warning modal actions
+  const handleImportProceed = useCallback(() => {
+    if (importFileContent) {
+      performImport(importFileContent);
+    }
+  }, [importFileContent, performImport]);
+
+  const handleImportCancel = useCallback(() => {
+    setImportFileContent(null);
+    setImportValidation(null);
+    setShowImportWarning(false);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       {/* Header with theme toggle */}
@@ -425,12 +515,23 @@ export default function UploadPage() {
                     Found {cachedPagesCount}{cachedTotalPages ? ` of ${cachedTotalPages}` : ''} cached notes for "{cachedFilename}"
                   </p>
                 </div>
-                <button
-                  onClick={clearNotesCache}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
-                >
-                  Clear cache
-                </button>
+                <div className="flex gap-3">
+                  <label className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors cursor-pointer">
+                    Import notes
+                    <input
+                      type="file"
+                      accept=".md,.markdown"
+                      className="hidden"
+                      onChange={handleImportSelect}
+                    />
+                  </label>
+                  <button
+                    onClick={clearNotesCache}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline transition-colors"
+                  >
+                    Clear cache
+                  </button>
+                </div>
               </div>
               <p className="text-blue-600 dark:text-blue-300 text-sm mt-2">
                 {cachedTotalPages && cachedPagesCount >= cachedTotalPages
@@ -622,6 +723,17 @@ export default function UploadPage() {
           </div>
         </div>
       </div>
+
+      {/* Import Warning Modal */}
+      {importValidation && (
+        <ImportWarningModal
+          isOpen={showImportWarning}
+          validation={importValidation}
+          currentPageCount={cachedTotalPages ?? 0}
+          onProceed={handleImportProceed}
+          onCancel={handleImportCancel}
+        />
+      )}
     </div>
   );
 }

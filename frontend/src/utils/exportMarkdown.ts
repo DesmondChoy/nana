@@ -8,6 +8,7 @@ import type {
 interface ExportOptions {
   parsedPDF: ParsedPDF;
   notesCache: Record<number, PageNotes>;
+  contentHash: string;
 }
 
 /**
@@ -51,6 +52,22 @@ function formatExpansionsSection(expansions: Expansion[]): string {
 }
 
 /**
+ * Generate YAML frontmatter for import matching
+ */
+function generateFrontmatter(
+  parsedPDF: ParsedPDF,
+  contentHash: string
+): string {
+  return `---
+nana_version: 1
+content_hash: ${contentHash}
+original_filename: ${parsedPDF.original_filename}
+total_pages: ${parsedPDF.total_pages}
+exported_at: ${new Date().toISOString()}
+---`;
+}
+
+/**
  * Generate table of contents with anchor links
  */
 function generateTOC(totalPages: number): string {
@@ -68,8 +85,12 @@ function generateTOC(totalPages: number): string {
 export function generateMarkdownExport({
   parsedPDF,
   notesCache,
+  contentHash,
 }: ExportOptions): string {
   const parts: string[] = [];
+
+  // YAML frontmatter for import matching
+  parts.push(generateFrontmatter(parsedPDF, contentHash));
 
   // Title
   parts.push(`# Study Notes: ${parsedPDF.original_filename}\n`);

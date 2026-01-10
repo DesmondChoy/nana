@@ -9,7 +9,7 @@
 - 📝 **Markdown Notes** - Rich formatting with Obsidian-style callouts (note, warning, tip, etc.)
 - 🔍 **Inline Commands** - Select text to elaborate, simplify, or get analogies tailored to your background
 - 🔎 **Text Search** - Find text across notes with result highlighting
-- 📤 **Export Notes** - Download all generated notes as a single markdown file with table of contents
+- 📤 **Export/Import Notes** - Export notes as Markdown with YAML frontmatter; import to restore notes later
 - 🌓 **Dark Mode** - Toggle theme with system preference detection
 - ↔️ **Resizable Layout** - Drag divider to adjust PDF/notes split (double-click to reset)
 - ⌨️ **Keyboard Navigation** - Arrow keys for quick page navigation while studying
@@ -155,6 +155,26 @@ If all three match AND all notes are cached, you'll see "Complete session cached
 
 > **Note:** Notes are stored in your browser's localStorage. Clearing browser data will remove the cache.
 
+### Can I backup and restore my notes?
+
+**Yes! Use the Export/Import feature:**
+
+| Action | How | What it does |
+|--------|-----|--------------|
+| **Export** | Click "Export Notes" on Study page | Downloads a `.md` file with all notes + YAML frontmatter |
+| **Import** | Click "Import notes" on Upload page | Restores notes from a previously exported file |
+
+**The export file includes:**
+- All generated notes in Markdown format
+- A content hash (SHA-256) to verify PDF matching
+- Original filename, page count, and export timestamp
+
+**When importing:**
+- If the content hash matches your current PDF → notes import instantly
+- If there's a mismatch (different PDF) → you'll see a warning but can still proceed
+
+> **Tip:** Export your notes before clearing browser data to preserve your work!
+
 ### What happens to my API key?
 
 **Your API key stays private and is never stored on our servers.**
@@ -196,5 +216,6 @@ With the backend running, visit `http://localhost:8000/docs` for interactive API
 While studying in the dual-pane view:
 - `←` / `→` - Previous/Next page
 - `↑` / `↓` - Scroll notes panel
+- `Cmd+F` / `Ctrl+F` - Open text search
 
-(Shortcuts are disabled when typing in input fields)
+(Arrow shortcuts are disabled when typing in input fields)

@@ -23,11 +23,12 @@ export default function StudyPage() {
   const cacheNotes = usePDFStore((state) => state.cacheNotes);
   const generationProgress = usePDFStore((state) => state.generationProgress);
   const setGenerationProgress = usePDFStore((state) => state.setGenerationProgress);
-  const clearPDF = usePDFStore((state) => state.clearPDF);
+  const clearSession = usePDFStore((state) => state.clearSession);
   const uploadState = usePDFStore((state) => state.uploadState);
   const clearUploadError = usePDFStore((state) => state.clearUploadError);
   const cachedTotalPages = usePDFStore((state) => state.cachedTotalPages);
   const cachedFilename = usePDFStore((state) => state.cachedFilename);
+  const cachedContentHash = usePDFStore((state) => state.cachedContentHash);
 
   // Computed values with fallback to cached metadata (for cache-only resume)
   const totalPages = parsedPDF?.total_pages ?? cachedTotalPages ?? 0;
@@ -74,10 +75,11 @@ export default function StudyPage() {
   } = useResizablePanes();
 
   // Navigation guard to prevent accidental data loss
+  // Use clearSession (not clearPDF) to preserve cached notes for resume
   const handleReset = useCallback(() => {
-    clearPDF();
+    clearSession();
     clearProfile();
-  }, [clearPDF, clearProfile]);
+  }, [clearSession, clearProfile]);
 
   const {
     showModal: showLeaveModal,
@@ -308,19 +310,23 @@ export default function StudyPage() {
   const isExportReady = totalPages > 0 && Object.keys(notesCache).length >= totalPages;
 
   const handleExport = useCallback(() => {
-    if (!parsedPDF || !isExportReady) return;
+    if (!parsedPDF || !isExportReady || !cachedContentHash) return;
 
-    const markdown = generateMarkdownExport({ parsedPDF, notesCache });
+    const markdown = generateMarkdownExport({
+      parsedPDF,
+      notesCache,
+      contentHash: cachedContentHash,
+    });
     const filename = getExportFilename(parsedPDF.original_filename);
     downloadMarkdown(markdown, filename);
 
     toast.success(`Exported ${filename}`);
-  }, [parsedPDF, notesCache, isExportReady, toast]);
+  }, [parsedPDF, notesCache, isExportReady, cachedContentHash, toast]);
 
   const handleGoBack = useCallback(() => {
     clearUploadError();
-    clearPDF();
-  }, [clearUploadError, clearPDF]);
+    clearSession();
+  }, [clearUploadError, clearSession]);
 
   // Handle navigation from search results
   const handleSearchNavigate = useCallback(

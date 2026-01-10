@@ -5,6 +5,7 @@ Handles PDF file uploads and extracts page-wise text using Gemini 3 Flash.
 Uses inline upload (no Files API) for simplicity.
 """
 
+import hashlib
 import logging
 import time
 from datetime import datetime
@@ -63,6 +64,7 @@ class ParsedPDF(BaseModel):
     total_pages: int
     pages: list[PageContent]
     session_id: str  # Unique ID for this upload session (used for debug log grouping)
+    content_hash: str  # SHA-256 hash of PDF bytes (first 16 hex chars) for import matching
 
 
 EXTRACTION_PROMPT = """Analyze this PDF document and extract the content from each page.
@@ -93,6 +95,9 @@ async def upload_and_parse_pdf(
 
     pdf_bytes = await file.read()
     file_size_mb = len(pdf_bytes) / (1024 * 1024)
+
+    # Generate content hash for import matching (first 16 hex chars of SHA-256)
+    content_hash = hashlib.sha256(pdf_bytes).hexdigest()[:16]
 
     # Check size limit (50MB)
     if len(pdf_bytes) > 50 * 1024 * 1024:
@@ -178,4 +183,5 @@ async def upload_and_parse_pdf(
         total_pages=len(pages),
         pages=pages,
         session_id=session_id,
+        content_hash=content_hash,
     )

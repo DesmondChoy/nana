@@ -54,6 +54,7 @@ interface PDFState {
   cachedFileSize: number | null; // File.size for cache validation (persisted)
   cachedFileModified: number | null; // File.lastModified for cache validation (persisted)
   cachedTotalPages: number | null; // Total pages for completeness check (persisted)
+  cachedContentHash: string | null; // SHA-256 hash of PDF bytes for import matching (persisted)
 
   // Failed pages (generation attempted but failed)
   failedPages: Set<number>;
@@ -92,6 +93,10 @@ interface PDFState {
   getExpansionsForPage: (pageNumber: number) => Expansion[];
   // Note editing
   updateNotesMarkdown: (pageNumber: number, markdown: string) => void;
+  // Import notes from markdown file
+  importNotesFromMarkdown: (importedNotes: Record<number, PageNotes>) => void;
+  // Clear session but preserve cache (for "Leave Study Session")
+  clearSession: () => void;
 }
 
 // Check if cached notes are in the old format (sections-based) vs new format (markdown-based)
@@ -123,6 +128,7 @@ export const usePDFStore = create<PDFState>()(
       cachedFileSize: null,
       cachedFileModified: null,
       cachedTotalPages: null,
+      cachedContentHash: null,
       failedPages: new Set<number>(),
       generationProgress: {
         isGenerating: false,
@@ -161,6 +167,7 @@ export const usePDFStore = create<PDFState>()(
           cachedFileSize: fileSize,
           cachedFileModified: fileModified,
           cachedTotalPages: pdf.total_pages,
+          cachedContentHash: pdf.content_hash,
           failedPages: isSameFile ? state.failedPages : new Set<number>(),
           uploadState: {
             isUploading: false,
@@ -307,6 +314,7 @@ export const usePDFStore = create<PDFState>()(
         cachedFileSize: null,
         cachedFileModified: null,
         cachedTotalPages: null,
+        cachedContentHash: null,
         failedPages: new Set<number>(),
       }),
 
@@ -407,6 +415,45 @@ export const usePDFStore = create<PDFState>()(
             },
           };
         }),
+
+      importNotesFromMarkdown: (importedNotes) =>
+        set((state) => ({
+          notesCache: importedNotes,
+          failedPages: new Set<number>(),
+          generationProgress: {
+            ...state.generationProgress,
+            completedPages: Object.keys(importedNotes).length,
+          },
+        })),
+
+      // Clear session but preserve cache (for "Leave Study Session")
+      clearSession: () => {
+        const state = get();
+        // Revoke blob URLs to free memory
+        if (state.pdfFileUrl) {
+          URL.revokeObjectURL(state.pdfFileUrl);
+        }
+        if (state.uploadState.pendingFileUrl) {
+          URL.revokeObjectURL(state.uploadState.pendingFileUrl);
+        }
+        // Only clear session-specific state, preserve cache
+        set({
+          parsedPDF: null,
+          pdfFileUrl: null,
+          uploadState: {
+            isUploading: false,
+            error: null,
+            pendingFileUrl: null,
+            pendingFileSize: null,
+            pendingFileModified: null,
+          },
+          generationProgress: {
+            isGenerating: false,
+            completedPages: Object.keys(state.notesCache).length,
+            totalPages: state.cachedTotalPages ?? 0,
+          },
+        });
+      },
     }),
     {
       name: 'nana-pdf-storage',
@@ -419,6 +466,7 @@ export const usePDFStore = create<PDFState>()(
         cachedFileSize: state.cachedFileSize,
         cachedFileModified: state.cachedFileModified,
         cachedTotalPages: state.cachedTotalPages,
+        cachedContentHash: state.cachedContentHash,
         currentPage: state.currentPage,
       }),
       // Migrate old format cache on rehydration
