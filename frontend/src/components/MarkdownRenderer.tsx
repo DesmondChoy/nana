@@ -316,12 +316,12 @@ export default function MarkdownRenderer({
           ),
           // Style lists
           ul: ({ children, ...props }) => (
-            <ul className="list-disc list-inside space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
+            <ul className="list-disc list-outside pl-5 space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
               {children}
             </ul>
           ),
           ol: ({ children, ...props }) => (
-            <ol className="list-decimal list-inside space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
+            <ol className="list-decimal list-outside pl-5 space-y-1 my-3 text-gray-700 dark:text-gray-300" {...props}>
               {children}
             </ol>
           ),
