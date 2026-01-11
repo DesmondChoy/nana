@@ -1,10 +1,12 @@
 # NANA POC Implementation Plan
 
-> **Current Status**: Phase 7 complete ✅. Deployed to Railway 🚀
+> **Current Status**: Phase 5.5 complete ✅. Deployed to Railway 🚀
 >
 > **Live App**: https://nana-app.up.railway.app/
 >
 > **Next Up**: Phase 6 (Quiz Generation & Mastery Tracking).
+>
+> **Latest (2025-01-11)**: Added Emphasis Integration feature - users can add key points from lectures that AI reorganizes into existing notes with `[!emphasis]` callouts.
 
 ## Objectives & Scope
 - Deliver a working proof-of-concept that ingests a user-provided PDF and produces:
@@ -320,6 +322,48 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
      - **No Backend Changes**: Editing is purely frontend state manipulation. The inline command prompts and backend router only handle creation, not editing. Export utility (`exportMarkdown.ts`) automatically includes edited expansions since it reads from the same store.
      - **Verification**: Tested with Playwright MCP - edit mode toggle, expansion textarea rendering, content editing, persistence across page navigation, and persistence across browser refresh (localStorage).
      - **Key Files**: `pdfStore.ts`, `ExpansionBlock.tsx`, `NotesPanel.tsx`, `StudyPage.tsx`
+  - ✅ *Bug Fix (2025-01-11)*: **Inline toolbar missing after cache resume / markdown import**
+    - **Symptom**: After importing markdown notes or resuming from complete cache, the inline commands toolbar (Elaborate/Simplify/Analogy) did not appear when selecting text. Toolbar worked fine with fresh note generation.
+    - **Root Cause**: `canUseInlineCommands` in `NotesPanel.tsx` required `pageContent` to be truthy: `!!(pageContent && userProfile && onAddExpansion)`. When cache is complete, `resumeFromCache()` skips PDF parsing (to avoid unnecessary Gemini API call), leaving `parsedPDF` as `null`. This made `pageContent` (derived from `parsedPDF?.pages[currentPage - 1]`) undefined, disabling the toolbar.
+    - **Key Insight**: The toolbar doesn't need `pageContent` to *appear*—it only needs it when the user clicks a command button. Since selected text comes FROM the notes, using `notes.markdown` as context for Elaborate/Simplify works just as well.
+    - **Solution**: Two minimal changes to `NotesPanel.tsx`:
+      1. Changed toolbar visibility check from `!!(pageContent && ...)` to `!!(notes && userProfile && onAddExpansion)`
+      2. Added fallback in `handleCommand`: `const contextText = pageContent?.text ?? notes.markdown`
+    - **Trade-offs**: No extra API calls, no extra storage. Toolbar appears whenever notes exist, and inline commands use whichever context is available (preferring `pageContent.text` when present).
+    - **Verification**: Tested with Playwright—uploaded PDF, exported notes, re-uploaded same PDF with markdown import, selected text, toolbar appeared, Elaborate command succeeded with expansion displayed.
+    - **Key Files**: `NotesPanel.tsx` (lines 136-139, 264-268)
+
+- [x] 5.5. **Emphasis Integration**
+   - *Libraries*: Existing infrastructure (FastAPI, Zustand, react-markdown callouts).
+   - *Problem*: Users attending lectures/presentations encounter important verbal insights not in the PDF that need to be integrated into their notes. Manual editing is tedious and doesn't reorganize content naturally.
+   - *Solution*: "Emphasis" feature allowing users to add key points that are AI-reorganized into existing notes with visual distinction.
+   - *Backend Steps*:
+     1. ✅ Add `IntegrateEmphasisRequest` schema to `schemas.py` (accepts page_number, existing_notes, emphasis_content, optional page_content, user_profile).
+     2. ✅ Create `routers/emphasis.py` with `/api/integrate-emphasis` endpoint - loads prompt, calls Gemini with structured output, returns reorganized `NotesResponse`.
+     3. ✅ Create `prompts/integrate_emphasis.md` - instructs LLM to weave emphasis naturally with `[!emphasis]` callouts.
+     4. ✅ Register router in `main.py`.
+   - *Frontend Steps*:
+     1. ✅ Add `emphasisDrafts: Record<number, string>` to `pdfStore.ts` with `setEmphasisDraft()` and `clearEmphasisDraft()` actions. Persisted to localStorage.
+     2. ✅ Create `EmphasisBox.tsx` - collapsible inline box with textarea, Close/Integrate buttons, loading state.
+     3. ✅ Add `[!emphasis]` callout styling to `MarkdownRenderer.tsx` (amber/yellow theme with ✨ icon).
+     4. ✅ Update `NotesPanel.tsx` - add Emphasis button to toolbar, toggle EmphasisBox, handle integration with loading/error states.
+     5. ✅ Add `integrateEmphasis()` to `api/client.ts`.
+     6. ✅ Wire up `handleIntegrateEmphasis()` in `StudyPage.tsx`.
+     7. ✅ Update `exportMarkdown.ts` to include unintegrated emphasis drafts in export.
+   - *UX Design*:
+     - **Trigger**: "Emphasis" button next to "Edit" button in NotesPanel toolbar.
+     - **Interaction**: Click opens expandable box above notes → type key points → click "Integrate" → notes reorganized with `[!emphasis]` callouts.
+     - **Draft Persistence**: Drafts saved per page, survive navigation, cleared only on successful integration.
+     - **Visual Distinction**: `[!emphasis]` callouts use amber/yellow styling distinct from AI callouts (blue/purple).
+     - **Scope**: Integrates only emphasis (not Elaborate/Simplify expansions which are drill-down details).
+   - *Key Files*:
+     - Backend: `routers/emphasis.py`, `schemas.py`, `prompts/integrate_emphasis.md`, `main.py`
+     - Frontend: `EmphasisBox.tsx`, `pdfStore.ts`, `NotesPanel.tsx`, `MarkdownRenderer.tsx`, `StudyPage.tsx`, `api/client.ts`, `utils/exportMarkdown.ts`
+   - *Reasoning*: Enables AI-assisted reorganization where user emphasis is naturally woven into existing notes. Unlike manual editing, the LLM finds optimal placement and creates smooth transitions while maintaining clear visual distinction.
+   - ✅ *Done (2025-01-11)*: **Phase 5.5 complete.**
+     - **Backend**: New endpoint with Gemini structured output. Handles optional `page_content` for cached sessions (falls back to existing notes for context).
+     - **Frontend**: Complete UX with toggle button, expandable box, draft persistence across pages, loading states, error handling, and export support.
+     - **Full spec**: See `docs/feat_integrate_emphasis.md` for detailed design decisions, edge cases, and testing checklist.
 
 - [ ] 6. **Quiz Generation & Mastery Tracking**
    - *Libraries*: form components, optional chart lib (`recharts`) for mastery visualization.
@@ -378,13 +422,14 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 - **Logs**: Backend/frontend output written to `backend.log` and `frontend.log` in project root.
 
 ## Next Steps
-- **Phase 7 Status**: ✅ Complete!
-  - ✅ Export button in header (desktop text + mobile icon)
-  - ✅ Button disabled until all pages have generated notes
-  - ✅ Auto-generated Table of Contents with anchor links
-  - ✅ Inline expansions included with blockquote formatting
-  - ✅ Success toast notification after download
-  - ✅ Pure frontend implementation (no backend, instant, works offline)
+- **Phase 5.5 Status**: ✅ Complete! (2025-01-11)
+  - ✅ "Emphasis" button in NotesPanel toolbar
+  - ✅ Expandable EmphasisBox with textarea for key points
+  - ✅ Draft persistence per page (survives navigation)
+  - ✅ AI reorganization via `/api/integrate-emphasis` endpoint
+  - ✅ `[!emphasis]` callouts with amber/yellow styling
+  - ✅ Export includes unintegrated drafts
+  - ✅ Full spec in `docs/feat_integrate_emphasis.md`
 - **Next**: Phase 6 - Quiz Generation & Mastery Tracking
 - **Then**: Phase 8 - Evaluation Logging & Telemetry
 
@@ -398,6 +443,7 @@ User clicks "Export" → [Single LLM call with full context] → Markdown downlo
 | 4.5 | Markdown + Callouts | `MarkdownRenderer.tsx`, `NotesResponse` schema |
 | 4.6 | LaTeX Math Rendering | `MarkdownRenderer.tsx`, `index.css`, `package.json` |
 | 5 | Inline Commands | `routers/inline_commands.py`, `SelectionToolbar.tsx`, `ExpansionBlock.tsx`, `useTextSelection.ts` |
+| 5.5 | Emphasis Integration | `routers/emphasis.py`, `EmphasisBox.tsx`, `prompts/integrate_emphasis.md` |
 | 7 | Markdown Export | `utils/exportMarkdown.ts`, `utils/index.ts`, `StudyPage.tsx` |
 
 ## Deployment
@@ -434,9 +480,10 @@ Users provide their own Gemini API key (free tier available at [Google AI Studio
 - **Functionalities Requiring Prompts**:
   1. *Notes Generation*: builds the initial per-page study notes using page content and user background.
   2. *Inline Commands*: elaboration, simplification, and analogy prompts reuse shared context but toggle instruction blocks for desired transformation.
-  3. *Quiz Generation*: produces user-triggered quizzes plus rationales and remediation hints; leverages recent wrong answers to adjust difficulty.
-  4. *Remediation Suggestions*: optional micro-prompts invoked when quizzes detect weaknesses, guiding the user back to specific sections.
-  5. *Consolidated Markdown Refinement*: lightweight prompt to summarize or smooth concatenated notes before export (if needed for readability).
+  3. *Emphasis Integration*: reorganizes existing notes to naturally weave in user-provided emphasis points with `[!emphasis]` callouts for visual distinction.
+  4. *Quiz Generation*: produces user-triggered quizzes plus rationales and remediation hints; leverages recent wrong answers to adjust difficulty.
+  5. *Remediation Suggestions*: optional micro-prompts invoked when quizzes detect weaknesses, guiding the user back to specific sections.
+  6. *Consolidated Markdown Refinement*: lightweight prompt to summarize or smooth concatenated notes before export (if needed for readability).
 - **Why a Repository**: 
   - Ensures traceability and easier iteration/testing of prompt text.
   - Allows future SWE to version prompts independently from code releases.

@@ -6,7 +6,7 @@ import NotesPanel from '../components/NotesPanel';
 import GenerationProgress from '../components/GenerationProgress';
 import ThemeToggle from '../components/ThemeToggle';
 import { SearchBar } from '../components/SearchBar';
-import { generateNotes, logCacheHits } from '../api/client';
+import { generateNotes, logCacheHits, integrateEmphasis } from '../api/client';
 import { generateMarkdownExport, downloadMarkdown, getExportFilename } from '../utils';
 import { useToast } from '../hooks/useToast';
 import { useResizablePanes } from '../hooks/useResizablePanes';
@@ -44,6 +44,10 @@ export default function StudyPage() {
   const updateExpansion = usePDFStore((state) => state.updateExpansion);
   const getExpansionsForPage = usePDFStore((state) => state.getExpansionsForPage);
   const updateNotesMarkdown = usePDFStore((state) => state.updateNotesMarkdown);
+  // Emphasis state
+  const emphasisDrafts = usePDFStore((state) => state.emphasisDrafts);
+  const setEmphasisDraft = usePDFStore((state) => state.setEmphasisDraft);
+  const clearEmphasisDraft = usePDFStore((state) => state.clearEmphasisDraft);
 
   // Search state
   const isSearchOpen = useSearchStore((state) => state.isOpen);
@@ -64,6 +68,9 @@ export default function StudyPage() {
 
   // Mobile tab state
   const [mobileActiveTab, setMobileActiveTab] = useState<'pdf' | 'notes'>('notes');
+
+  // Emphasis integration state
+  const [isIntegratingEmphasis, setIsIntegratingEmphasis] = useState(false);
 
   // Resizable panes for desktop layout
   const {
@@ -316,12 +323,46 @@ export default function StudyPage() {
       parsedPDF,
       notesCache,
       contentHash: cachedContentHash,
+      emphasisDrafts,
     });
     const filename = getExportFilename(parsedPDF.original_filename);
     downloadMarkdown(markdown, filename);
 
     toast.success(`Exported ${filename}`);
-  }, [parsedPDF, notesCache, isExportReady, cachedContentHash, toast]);
+  }, [parsedPDF, notesCache, isExportReady, cachedContentHash, emphasisDrafts, toast]);
+
+  // Handle emphasis integration
+  const handleIntegrateEmphasis = useCallback(async () => {
+    const currentNotes = notesCache[currentPage];
+    const draft = emphasisDrafts[currentPage];
+    // pageContent is optional - may not exist for cached sessions
+    const pageContent = parsedPDF?.pages[currentPage - 1];
+
+    if (!currentNotes || !draft?.trim() || !profile) return;
+
+    setIsIntegratingEmphasis(true);
+    try {
+      const result = await integrateEmphasis({
+        pageNumber: currentPage,
+        existingNotes: currentNotes.notes.markdown,
+        emphasisContent: draft,
+        pageContent, // Can be undefined for cached sessions
+        userProfile: profile,
+        sessionId: parsedPDF?.session_id,
+      });
+
+      // Update notes with integrated markdown
+      cacheNotes(currentPage, result);
+      // Clear the draft after successful integration
+      clearEmphasisDraft(currentPage);
+      toast.success('Emphasis integrated');
+    } catch (error) {
+      console.error('Failed to integrate emphasis:', error);
+      toast.error('Failed to integrate emphasis');
+    } finally {
+      setIsIntegratingEmphasis(false);
+    }
+  }, [currentPage, notesCache, emphasisDrafts, parsedPDF, profile, cacheNotes, clearEmphasisDraft, toast]);
 
   const handleGoBack = useCallback(() => {
     clearUploadError();
@@ -535,6 +576,10 @@ export default function StudyPage() {
               sessionId={parsedPDF?.session_id}
               onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
               highlightTerm={highlightTerm}
+              emphasisDraft={emphasisDrafts[currentPage] ?? ''}
+              onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
+              onIntegrateEmphasis={handleIntegrateEmphasis}
+              isIntegratingEmphasis={isIntegratingEmphasis}
             />
           </div>
         </div>
@@ -575,6 +620,10 @@ export default function StudyPage() {
                   sessionId={parsedPDF?.session_id}
                   onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
                   highlightTerm={highlightTerm}
+                  emphasisDraft={emphasisDrafts[currentPage] ?? ''}
+                  onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
+                  onIntegrateEmphasis={handleIntegrateEmphasis}
+                  isIntegratingEmphasis={isIntegratingEmphasis}
                 />
               </div>
             )}

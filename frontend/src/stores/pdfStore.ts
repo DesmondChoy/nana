@@ -50,6 +50,8 @@ interface PDFState {
 
   // Cached notes per page (keyed by page number)
   notesCache: Record<number, PageNotes>;
+  // Emphasis drafts per page (keyed by page number) - persisted
+  emphasisDrafts: Record<number, string>;
   cachedFilename: string | null; // Track which file the cache belongs to (persisted)
   cachedFileSize: number | null; // File.size for cache validation (persisted)
   cachedFileModified: number | null; // File.lastModified for cache validation (persisted)
@@ -95,6 +97,9 @@ interface PDFState {
   updateNotesMarkdown: (pageNumber: number, markdown: string) => void;
   // Import notes from markdown file
   importNotesFromMarkdown: (importedNotes: Record<number, PageNotes>) => void;
+  // Emphasis draft actions
+  setEmphasisDraft: (pageNumber: number, draft: string) => void;
+  clearEmphasisDraft: (pageNumber: number) => void;
   // Clear session but preserve cache (for "Leave Study Session")
   clearSession: () => void;
 }
@@ -124,6 +129,7 @@ export const usePDFStore = create<PDFState>()(
         pendingFileModified: null,
       },
       notesCache: {},
+      emphasisDrafts: {},
       cachedFilename: null,
       cachedFileSize: null,
       cachedFileModified: null,
@@ -263,6 +269,7 @@ export const usePDFStore = create<PDFState>()(
             pendingFileModified: null,
           },
           notesCache: {},
+          emphasisDrafts: {},
           cachedFilename: null,
           cachedFileSize: null,
           cachedFileModified: null,
@@ -310,6 +317,7 @@ export const usePDFStore = create<PDFState>()(
 
       clearNotesCache: () => set({
         notesCache: {},
+        emphasisDrafts: {},
         cachedFilename: null,
         cachedFileSize: null,
         cachedFileModified: null,
@@ -426,6 +434,20 @@ export const usePDFStore = create<PDFState>()(
           },
         })),
 
+      setEmphasisDraft: (pageNumber, draft) =>
+        set((state) => ({
+          emphasisDrafts: {
+            ...state.emphasisDrafts,
+            [pageNumber]: draft,
+          },
+        })),
+
+      clearEmphasisDraft: (pageNumber) =>
+        set((state) => {
+          const { [pageNumber]: _, ...rest } = state.emphasisDrafts;
+          return { emphasisDrafts: rest };
+        }),
+
       // Clear session but preserve cache (for "Leave Study Session")
       clearSession: () => {
         const state = get();
@@ -462,6 +484,7 @@ export const usePDFStore = create<PDFState>()(
       // pdfFileUrl is session-only (blob URLs don't survive refresh)
       partialize: (state) => ({
         notesCache: state.notesCache,
+        emphasisDrafts: state.emphasisDrafts,
         cachedFilename: state.cachedFilename,
         cachedFileSize: state.cachedFileSize,
         cachedFileModified: state.cachedFileModified,

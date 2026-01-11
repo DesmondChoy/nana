@@ -9,6 +9,7 @@ interface ExportOptions {
   parsedPDF: ParsedPDF;
   notesCache: Record<number, PageNotes>;
   contentHash: string;
+  emphasisDrafts?: Record<number, string>;
 }
 
 /**
@@ -52,6 +53,22 @@ function formatExpansionsSection(expansions: Expansion[]): string {
 }
 
 /**
+ * Format unintegrated emphasis draft for a page
+ */
+function formatEmphasisDraft(draft: string): string {
+  if (!draft?.trim()) return '';
+
+  // Format each line as a bullet point in a warning callout
+  const lines = draft
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => `> - ${line.trim()}`)
+    .join('\n');
+
+  return `\n---\n\n### Emphasis Draft (Not Yet Integrated)\n\n> [!warning] Unintegrated\n${lines}`;
+}
+
+/**
  * Generate YAML frontmatter for import matching
  */
 function generateFrontmatter(
@@ -86,6 +103,7 @@ export function generateMarkdownExport({
   parsedPDF,
   notesCache,
   contentHash,
+  emphasisDrafts = {},
 }: ExportOptions): string {
   const parts: string[] = [];
 
@@ -101,6 +119,7 @@ export function generateMarkdownExport({
   // Each page's notes
   for (let pageNum = 1; pageNum <= parsedPDF.total_pages; pageNum++) {
     const pageNotes = notesCache[pageNum];
+    const emphasisDraft = emphasisDrafts[pageNum];
 
     // Page divider (H2 heading only)
     parts.push(`## Page ${pageNum}`);
@@ -108,6 +127,11 @@ export function generateMarkdownExport({
     if (pageNotes) {
       // Main notes content
       parts.push(pageNotes.notes.markdown);
+
+      // Unintegrated emphasis draft if any
+      if (emphasisDraft?.trim()) {
+        parts.push(formatEmphasisDraft(emphasisDraft));
+      }
 
       // Expansions if any
       if (pageNotes.expansions && pageNotes.expansions.length > 0) {

@@ -149,6 +149,42 @@ export async function executeInlineCommand(
   return response.json();
 }
 
+// Integrate emphasis into existing notes
+export interface IntegrateEmphasisParams {
+  pageNumber: number;
+  existingNotes: string;
+  emphasisContent: string;
+  pageContent?: PageContent; // Optional for cached sessions
+  userProfile: UserProfile;
+  sessionId?: string;
+  signal?: AbortSignal;
+}
+
+export async function integrateEmphasis(
+  params: IntegrateEmphasisParams
+): Promise<NotesResponse> {
+  const response = await fetch(`${API_BASE}/integrate-emphasis`, {
+    method: 'POST',
+    headers: getHeaders('application/json'),
+    body: JSON.stringify({
+      page_number: params.pageNumber,
+      existing_notes: params.existingNotes,
+      emphasis_content: params.emphasisContent,
+      page_content: params.pageContent,
+      user_profile: params.userProfile,
+      session_id: params.sessionId ?? null,
+    }),
+    signal: params.signal,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Integration failed' }));
+    throw new Error(error.detail || 'Failed to integrate emphasis');
+  }
+
+  return response.json();
+}
+
 // Validate API key
 export async function validateApiKey(apiKey: string): Promise<{ valid: boolean; message: string }> {
   const response = await fetch(`${API_BASE}/validate-key`, {

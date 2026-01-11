@@ -73,3 +73,18 @@ class InlineCommandResponse(BaseModel):
     """Response from inline text transformation."""
     content: str = Field(..., description="Transformed markdown content")
     command_type: InlineCommandType = Field(..., description="The command type that was executed")
+
+
+# --- Emphasis Integration API Models ---
+
+class IntegrateEmphasisRequest(BaseModel):
+    """Request payload for integrating user emphasis into existing notes."""
+    page_number: int = Field(..., description="Page number of the notes")
+    existing_notes: str = Field(..., description="Current markdown notes content")
+    emphasis_content: str = Field(..., description="User's key points to integrate")
+    page_content: Optional[PageContent] = Field(None, description="Page content for context (optional for cached sessions)")
+    user_profile: UserProfile = Field(..., description="User profile for personalization")
+    session_id: Optional[str] = Field(None, description="Session ID for debug log grouping")
+
+
+# Response uses existing NotesResponse model

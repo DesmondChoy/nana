@@ -17,6 +17,13 @@ const CALLOUT_STYLES: Record<
     titleColor: 'text-purple-800 dark:text-purple-200',
     textColor: 'text-purple-900 dark:text-purple-100',
   },
+  emphasis: {
+    bg: 'bg-amber-50 dark:bg-amber-900/30',
+    border: 'border-amber-400 dark:border-amber-500',
+    icon: '✨',
+    titleColor: 'text-amber-800 dark:text-amber-200',
+    textColor: 'text-amber-900 dark:text-amber-100',
+  },
   note: {
     bg: 'bg-blue-50 dark:bg-blue-900/30',
     border: 'border-blue-400 dark:border-blue-500',

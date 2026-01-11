@@ -3,6 +3,7 @@ import type { NotesResponse, InlineCommandType, Expansion, PageContent, UserProf
 import MarkdownRenderer from './MarkdownRenderer';
 import SelectionToolbar from './SelectionToolbar';
 import ExpansionBlock from './ExpansionBlock';
+import EmphasisBox from './EmphasisBox';
 import { useTextSelection, useClearSelection } from '../hooks/useTextSelection';
 import { executeInlineCommand } from '../api/client';
 
@@ -24,6 +25,11 @@ interface NotesPanelProps {
   onUpdateNotes?: (markdown: string) => void;
   // For search highlighting
   highlightTerm?: string | null;
+  // For emphasis integration
+  emphasisDraft?: string;
+  onEmphasisDraftChange?: (draft: string) => void;
+  onIntegrateEmphasis?: () => Promise<void>;
+  isIntegratingEmphasis?: boolean;
 }
 
 // Skeleton loader component
@@ -99,11 +105,16 @@ export default function NotesPanel({
   sessionId,
   onUpdateNotes,
   highlightTerm,
+  emphasisDraft = '',
+  onEmphasisDraftChange,
+  onIntegrateEmphasis,
+  isIntegratingEmphasis = false,
 }: NotesPanelProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExecutingCommand, setIsExecutingCommand] = useState(false);
   const [executingCommandType, setExecutingCommandType] = useState<InlineCommandType | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isEmphasisOpen, setIsEmphasisOpen] = useState(false);
   const [editedMarkdown, setEditedMarkdown] = useState('');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +133,10 @@ export default function NotesPanel({
 
   const handleCommand = useCallback(
     async (command: InlineCommandType) => {
-      if (!selection || !pageContent || !userProfile || !onAddExpansion) return;
+      if (!selection || !userProfile || !onAddExpansion || !notes) return;
+
+      // Use pageContent.text if available, otherwise fall back to notes markdown
+      const contextText = pageContent?.text ?? notes.markdown;
 
       setIsExecutingCommand(true);
       setExecutingCommandType(command);
@@ -131,7 +145,7 @@ export default function NotesPanel({
           commandType: command,
           selectedText: selection.text,
           pageNumber: pageNumber,
-          pageText: pageContent.text,
+          pageText: contextText,
           userProfile: userProfile,
           sessionId: sessionId,
         });
@@ -146,7 +160,7 @@ export default function NotesPanel({
         setExecutingCommandType(null);
       }
     },
-    [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection]
+    [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection, notes]
   );
 
   // Toggle edit mode
@@ -183,9 +197,10 @@ export default function NotesPanel({
     }
   }, [notes?.markdown]);
 
-  // Reset edit mode when page changes
+  // Reset edit mode and close emphasis box when page changes
   useEffect(() => {
     setIsEditMode(false);
+    setIsEmphasisOpen(false);
   }, [pageNumber]);
 
   // Cleanup timeout on unmount
@@ -249,7 +264,8 @@ export default function NotesPanel({
   }
 
   // Check if we can enable inline commands
-  const canUseInlineCommands = !!(pageContent && userProfile && onAddExpansion);
+  // Note: pageContent is optional - we can use notes.markdown as fallback context
+  const canUseInlineCommands = !!(notes && userProfile && onAddExpansion);
 
   return (
     <div className="p-4 sm:p-6 relative animate-fade-in" ref={notesContainerRef}>
@@ -257,28 +273,49 @@ export default function NotesPanel({
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
           Notes for Page {pageNumber}
         </h2>
-        <button
-          onClick={handleToggleEdit}
-          className={`p-2 rounded-lg transition-colors ${
-            isEditMode
-              ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-          title={isEditMode ? 'View notes' : 'Edit notes'}
-        >
-          {isEditMode ? (
-            // Eye icon for "view mode"
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          ) : (
-            // Pencil icon for "edit mode"
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
+        <div className="flex items-center gap-2">
+          {/* Emphasis button */}
+          {onEmphasisDraftChange && onIntegrateEmphasis && (
+            <button
+              onClick={() => setIsEmphasisOpen(!isEmphasisOpen)}
+              disabled={!notes || isEditMode}
+              className={`p-2 rounded-lg transition-colors ${
+                isEmphasisOpen
+                  ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              } ${!notes || isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={isEmphasisOpen ? 'Close emphasis' : 'Add emphasis'}
+            >
+              {/* Sparkles icon */}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+            </button>
           )}
-        </button>
+          {/* Edit button */}
+          <button
+            onClick={handleToggleEdit}
+            className={`p-2 rounded-lg transition-colors ${
+              isEditMode
+                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+            title={isEditMode ? 'View notes' : 'Edit notes'}
+          >
+            {isEditMode ? (
+              // Eye icon for "view mode"
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            ) : (
+              // Pencil icon for "edit mode"
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Hint for inline commands - show different hints based on mode */}
@@ -291,6 +328,17 @@ export default function NotesPanel({
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
           ✏️ Editing raw markdown. Exit edit mode to use AI commands.
         </p>
+      )}
+
+      {/* Emphasis Box - show when open and emphasis handlers are available */}
+      {isEmphasisOpen && onEmphasisDraftChange && onIntegrateEmphasis && notes && (
+        <EmphasisBox
+          draft={emphasisDraft}
+          onDraftChange={onEmphasisDraftChange}
+          onIntegrate={onIntegrateEmphasis}
+          onClose={() => setIsEmphasisOpen(false)}
+          isIntegrating={isIntegratingEmphasis}
+        />
       )}
 
       {/* Selection Toolbar - only show when not editing */}
