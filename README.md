@@ -8,6 +8,7 @@
 - 🧮 **LaTeX Math Rendering** - Displays mathematical notation beautifully using KaTeX
 - 📝 **Markdown Notes** - Rich formatting with Obsidian-style callouts (note, warning, tip, etc.)
 - 🔍 **Inline Commands** - Select text to elaborate, simplify, or get analogies tailored to your background
+- ✨ **Emphasis Integration** - Add key points from lectures/presentations that AI weaves into notes
 - 🔎 **Text Search** - Find text across notes with result highlighting
 - 📤 **Export/Import Notes** - Export notes as Markdown with YAML frontmatter; import to restore notes later
 - 🌓 **Dark Mode** - Toggle theme with system preference detection
@@ -30,7 +31,7 @@ NANA is powered by [Gemini 3 Flash](https://ai.google.dev/gemini-api/docs/gemini
 
 ## FAQ
 
-### If I upload the same PDF again, what will happen?
+### 1. If I upload the same PDF again, what will happen?
 
 **It depends on whether your notes are fully cached:**
 
@@ -49,7 +50,7 @@ If all three match AND all notes are cached, you'll see "Complete session cached
 
 > **Note:** Notes are stored in your browser's localStorage. Clearing browser data will remove the cache.
 
-### Can I backup and restore my notes?
+### 2. Can I backup and restore my notes?
 
 **Yes! Use the Export/Import feature:**
 
@@ -69,7 +70,7 @@ If all three match AND all notes are cached, you'll see "Complete session cached
 
 > **Tip:** Export your notes before clearing browser data to preserve your work!
 
-### What happens to my API key?
+### 3. What happens to my API key?
 
 **Your API key stays private and is never stored on our servers.**
 
