@@ -22,6 +22,12 @@
 
 The app uses a BYOK (Bring Your Own Key) model—you'll need a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey). Enter your key once and it's saved in your browser for future sessions.
 
+## Model
+
+NANA is powered by [Gemini 3 Flash](https://ai.google.dev/gemini-api/docs/gemini-3) (`gemini-3-flash-preview`).
+
+📖 [API Documentation](https://ai.google.dev/gemini-api/docs) · 💰 [Pricing](https://ai.google.dev/gemini-api/docs/pricing) · 🔑 [Get API Key](https://aistudio.google.com/apikey)
+
 ## FAQ
 
 ### If I upload the same PDF again, what will happen?
@@ -228,3 +234,14 @@ While studying in the dual-pane view:
 - `Cmd+F` / `Ctrl+F` - Open text search
 
 (Arrow shortcuts are disabled when typing in input fields)
+
+## Open Source
+
+<a href="https://github.com/DesmondChoy/nana">
+  <img src="https://img.shields.io/badge/GitHub-DesmondChoy%2Fnana-181717?logo=github" alt="GitHub">
+</a>
+<a href="https://github.com/DesmondChoy/nana/blob/main/LICENSE">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License">
+</a>
+
+This project is open source and available under the [MIT License](LICENSE).
