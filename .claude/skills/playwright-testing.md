@@ -1,14 +1,24 @@
+---
+description: Systematic Playwright MCP testing workflow for NANA app with detailed checklists
+triggers:
+  - test the app
+  - playwright testing
+  - visual testing
+  - run playwright
+  - test nana
+---
+
 # Playwright MCP Testing Guide
 
-This document provides a systematic checklist for visually testing and inspecting the NANA app using Playwright MCP.
+This skill provides a systematic checklist for visually testing and inspecting the NANA app using Playwright MCP.
 
 ---
 
-## Instructions for LLM Agents
+## Workflow Instructions
 
-**IMPORTANT**: If you are an LLM (Large Language Model) reading this document, you MUST follow these instructions:
+**IMPORTANT**: Follow these instructions exactly:
 
-1. **Use the Checklist System**: This document contains structured checklists that you must work through systematically. Do NOT skip items or test ad-hoc.
+1. **Use the Checklist System**: Work through the structured checklists systematically. Do NOT skip items or test ad-hoc.
 
 2. **Track Progress**: Use your task/todo management tools to track which checklist items have been completed. Mark items as you complete them.
 
@@ -46,7 +56,7 @@ This document provides a systematic checklist for visually testing and inspectin
 
 ## Bug Handling Workflow
 
-**IMPORTANT FOR LLM AGENTS**: When any bug or visual error is detected during testing, you MUST follow this workflow exactly. Do NOT continue testing until the bug is fixed and verified.
+**CRITICAL**: When any bug or visual error is detected during testing, follow this workflow exactly. Do NOT continue testing until the bug is fixed and verified.
 
 1. **STOP testing immediately** - Do not continue to the next checklist item
 2. **Document the bug** - Note the page number, steps to reproduce, and expected vs actual behavior
@@ -488,7 +498,7 @@ When documenting bugs, include:
 
 ---
 
-## Checklist Summary for LLM Agents
+## Checklist Summary
 
 When instructed to perform Playwright testing, follow this workflow:
 
