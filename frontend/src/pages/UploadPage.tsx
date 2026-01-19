@@ -6,7 +6,7 @@ import StorageWarning from '../components/StorageWarning';
 import ThemeToggle from '../components/ThemeToggle';
 import ApiKeyInput from '../components/ApiKeyInput';
 import { ImportWarningModal } from '../components/ImportWarningModal';
-import { validateImport, parseMarkdownImport, type ImportValidation } from '../utils';
+import { validateImport, parseMarkdownImport, parseFrontmatter, computeContentHash, type ImportValidation } from '../utils';
 import { useToast } from '../hooks/useToast';
 import type {
   UserProfile,
@@ -329,12 +329,14 @@ export default function UploadPage() {
 
   const cachedContentHash = usePDFStore((state) => state.cachedContentHash);
   const importNotesFromMarkdown = usePDFStore((state) => state.importNotesFromMarkdown);
+  const importWithFreshPdf = usePDFStore((state) => state.importWithFreshPdf);
 
   const cachedPagesCount = Object.keys(notesCache).length;
 
   const [formData, setFormData] = useState<Partial<UserProfile>>(existingProfile || {});
   const [additionalContext, setAdditionalContext] = useState(existingProfile?.additional_context || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedNotesFile, setSelectedNotesFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -342,6 +344,7 @@ export default function UploadPage() {
   const [importFileContent, setImportFileContent] = useState<string | null>(null);
   const [importValidation, setImportValidation] = useState<ImportValidation | null>(null);
   const [showImportWarning, setShowImportWarning] = useState(false);
+  const [pendingPdfHash, setPendingPdfHash] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -371,10 +374,13 @@ export default function UploadPage() {
     formData.primary_goal,
   ].filter(Boolean).length;
 
-  const canSubmit = isProfileComplete && selectedFile && !isSubmitting && hasValidApiKey;
+  // Allow submit without API key if notes file is provided (no API call needed)
+  const canSubmit = isProfileComplete && selectedFile && !isSubmitting && (hasValidApiKey || selectedNotesFile);
 
-  const handleSubmit = useCallback(() => {
-    if (!isProfileComplete || !selectedFile || isSubmitting || !hasValidApiKey) return;
+  const handleSubmit = useCallback(async () => {
+    if (!isProfileComplete || !selectedFile || isSubmitting) return;
+    // Require API key unless notes file is provided
+    if (!hasValidApiKey && !selectedNotesFile) return;
 
     const profile: UserProfile = {
       prior_expertise: formData.prior_expertise!,
@@ -387,7 +393,82 @@ export default function UploadPage() {
     setIsSubmitting(true);
     setProfile(profile);
 
-    // Check if we can skip the Gemini API call (cache is valid and complete)
+    // If notes file is provided, try to import directly (skip API)
+    if (selectedNotesFile) {
+      try {
+        // Read notes file and compute PDF hash in parallel
+        const [notesContent, pdfHash] = await Promise.all([
+          selectedNotesFile.text(),
+          computeContentHash(selectedFile),
+        ]);
+
+        // Parse frontmatter to validate format
+        const frontmatter = parseFrontmatter(notesContent);
+        if (!frontmatter) {
+          toast.error('Invalid notes file: No valid frontmatter found.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (frontmatter.nana_version !== 1) {
+          toast.error(`Unsupported notes version: ${frontmatter.nana_version}`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Check if hash matches
+        const hashMatches = frontmatter.content_hash === pdfHash;
+
+        if (!hashMatches) {
+          // Set up for warning modal
+          const validation: ImportValidation = {
+            isValid: true,
+            hashMatches: false,
+            pageCountMatches: true, // We don't know the actual page count until after API call
+            frontmatter,
+          };
+          setImportFileContent(notesContent);
+          setImportValidation(validation);
+          setPendingPdfHash(pdfHash);
+          setShowImportWarning(true);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Hash matches - import directly
+        const importedNotes = parseMarkdownImport(notesContent);
+        const importedCount = Object.keys(importedNotes).length;
+
+        if (importedCount === 0) {
+          toast.error('No notes found in the import file.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Create blob URL and import
+        const fileUrl = URL.createObjectURL(selectedFile);
+        importWithFreshPdf(
+          selectedFile.name,
+          selectedFile.size,
+          selectedFile.lastModified,
+          frontmatter.total_pages,
+          pdfHash,
+          fileUrl,
+          importedNotes
+        );
+
+        console.log(`[NANA] Imported ${importedCount} pages from notes file. Skipping Gemini API.`);
+        toast.success(`Imported notes for ${importedCount} pages`);
+        return;
+      } catch (error) {
+        toast.error('Failed to process notes file.');
+        console.error('Notes import error:', error);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // No notes file - check existing cache
     const cacheValid =
       cachedFilename === selectedFile.name &&
       cachedFileSize === selectedFile.size &&
@@ -411,6 +492,7 @@ export default function UploadPage() {
     formData,
     additionalContext,
     selectedFile,
+    selectedNotesFile,
     setProfile,
     handleUpload,
     isProfileComplete,
@@ -422,6 +504,8 @@ export default function UploadPage() {
     cachedTotalPages,
     notesCache,
     resumeFromCache,
+    importWithFreshPdf,
+    toast,
   ]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -450,6 +534,15 @@ export default function UploadPage() {
     if (file) {
       setSelectedFile(file);
     }
+  }, []);
+
+  const handleNotesFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedNotesFile(file);
+    }
+    // Reset input so the same file can be selected again
+    e.target.value = '';
   }, []);
 
   // Perform the actual import (defined before handleImportSelect which uses it)
@@ -518,15 +611,49 @@ export default function UploadPage() {
 
   // Handle import warning modal actions
   const handleImportProceed = useCallback(() => {
-    if (importFileContent) {
-      performImport(importFileContent);
+    if (!importFileContent || !importValidation?.frontmatter) return;
+
+    const importedNotes = parseMarkdownImport(importFileContent);
+    const importedCount = Object.keys(importedNotes).length;
+
+    if (importedCount === 0) {
+      toast.error('No notes found in the import file.');
+      return;
     }
-  }, [importFileContent, performImport]);
+
+    // Check if this is a fresh PDF import (from upload form) or existing cache import
+    if (pendingPdfHash && selectedFile) {
+      // Fresh PDF import - use importWithFreshPdf
+      const fileUrl = URL.createObjectURL(selectedFile);
+      importWithFreshPdf(
+        selectedFile.name,
+        selectedFile.size,
+        selectedFile.lastModified,
+        importValidation.frontmatter.total_pages,
+        pendingPdfHash,
+        fileUrl,
+        importedNotes
+      );
+      console.log(`[NANA] Imported ${importedCount} pages (with warning). Skipping Gemini API.`);
+    } else {
+      // Existing cache import - use importNotesFromMarkdown
+      importNotesFromMarkdown(importedNotes);
+    }
+
+    toast.success(`Imported notes for ${importedCount} pages`);
+
+    // Reset import state
+    setImportFileContent(null);
+    setImportValidation(null);
+    setShowImportWarning(false);
+    setPendingPdfHash(null);
+  }, [importFileContent, importValidation, pendingPdfHash, selectedFile, importWithFreshPdf, importNotesFromMarkdown, toast]);
 
   const handleImportCancel = useCallback(() => {
     setImportFileContent(null);
     setImportValidation(null);
     setShowImportWarning(false);
+    setPendingPdfHash(null);
   }, []);
 
   return (
@@ -716,6 +843,52 @@ export default function UploadPage() {
                   </label>
                 )}
               </div>
+            </div>
+
+            {/* Import Existing Notes (always visible) */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Import Existing Notes
+                <span className="text-gray-400 dark:text-gray-500">(optional)</span>
+                {selectedNotesFile && (
+                  <span className="flex items-center justify-center w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/50">
+                    <CheckIcon className="w-3 h-3 text-green-600 dark:text-green-400" />
+                  </span>
+                )}
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Upload a previously exported Markdown file to skip notes generation
+              </p>
+              {selectedNotesFile ? (
+                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-green-700 dark:text-green-300 truncate">
+                      {selectedNotesFile.name}
+                    </p>
+                    <p className="text-sm text-green-600 dark:text-green-400">
+                      {(selectedNotesFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                  <button
+                    className="ml-3 text-sm text-red-600 dark:text-red-400 hover:underline whitespace-nowrap"
+                    onClick={() => setSelectedNotesFile(null)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center w-full py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Select Markdown file (.md)
+                  </span>
+                  <input
+                    type="file"
+                    accept=".md,.markdown"
+                    className="hidden"
+                    onChange={handleNotesFileSelect}
+                  />
+                </label>
+              )}
             </div>
 
             {/* Cached Session Banner */}

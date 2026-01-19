@@ -97,6 +97,16 @@ interface PDFState {
   updateNotesMarkdown: (pageNumber: number, markdown: string) => void;
   // Import notes from markdown file
   importNotesFromMarkdown: (importedNotes: Record<number, PageNotes>) => void;
+  // Import notes with fresh PDF (no existing cache)
+  importWithFreshPdf: (
+    filename: string,
+    fileSize: number,
+    fileModified: number,
+    totalPages: number,
+    contentHash: string,
+    fileUrl: string,
+    importedNotes: Record<number, PageNotes>
+  ) => void;
   // Emphasis draft actions
   setEmphasisDraft: (pageNumber: number, draft: string) => void;
   clearEmphasisDraft: (pageNumber: number) => void;
@@ -433,6 +443,26 @@ export const usePDFStore = create<PDFState>()(
             completedPages: Object.keys(importedNotes).length,
           },
         })),
+
+      importWithFreshPdf: (filename, fileSize, fileModified, totalPages, contentHash, fileUrl, importedNotes) =>
+        set({
+          pdfFileUrl: fileUrl,
+          parsedPDF: null, // Not needed when all notes are imported
+          currentPage: 1,
+          notesCache: importedNotes,
+          emphasisDrafts: {},
+          cachedFilename: filename,
+          cachedFileSize: fileSize,
+          cachedFileModified: fileModified,
+          cachedTotalPages: totalPages,
+          cachedContentHash: contentHash,
+          failedPages: new Set<number>(),
+          generationProgress: {
+            isGenerating: false,
+            completedPages: Object.keys(importedNotes).length,
+            totalPages: totalPages,
+          },
+        }),
 
       setEmphasisDraft: (pageNumber, draft) =>
         set((state) => ({

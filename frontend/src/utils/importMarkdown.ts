@@ -37,7 +37,7 @@ const LABEL_TO_COMMAND_TYPE: Record<string, InlineCommandType> = {
  * Parse YAML frontmatter from Markdown content.
  * Simple parser that handles our specific format without external dependencies.
  */
-function parseFrontmatter(content: string): MarkdownFrontmatter | null {
+export function parseFrontmatter(content: string): MarkdownFrontmatter | null {
   // Match frontmatter block: starts with ---, ends with ---
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return null;

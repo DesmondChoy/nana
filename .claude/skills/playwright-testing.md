@@ -359,14 +359,56 @@ This phase covers features added recently that require dedicated testing.
 - [ ] Exported content preserves formatting (headers, lists, callouts)
 - [ ] Inline expansions are included in export
 
-#### Markdown Import
-- [ ] Import button is visible on Study page header
+#### Markdown Import (From Study Page)
+- [ ] Import button is visible on Study page header (inside cached session banner)
 - [ ] Clicking import opens file picker for .md files
 - [ ] Importing valid markdown file updates notes
 - [ ] Content hash validation warning appears for mismatched PDF
 - [ ] Import warning modal has Confirm/Cancel options
 - [ ] Successful import shows toast notification
 - [ ] Imported notes display correctly with formatting preserved
+
+#### PDF + Markdown Combined Upload (From Upload Page)
+This feature allows uploading a PDF with pre-existing notes without requiring an API call.
+
+**UI Elements**
+- [ ] "Import Existing Notes" section is always visible on Upload page (not just when cached)
+- [ ] Section shows "(optional)" label
+- [ ] Help text explains: "Upload a previously exported Markdown file to skip notes generation"
+- [ ] "Select Markdown file (.md)" button opens file picker
+- [ ] Selected notes file shows filename, size, and "Remove" button
+- [ ] Green checkmark appears when notes file is selected
+
+**Combined Upload Flow (Matching Hash)**
+- [ ] Upload PDF file → PDF section shows file info
+- [ ] Upload matching Markdown file → Notes section shows file info
+- [ ] "Start Learning" button enables (even without API key if notes provided)
+- [ ] Click "Start Learning" → Console shows "Skipping Gemini API"
+- [ ] Toast shows "Imported notes for X pages"
+- [ ] Study page loads with imported notes immediately
+- [ ] No API call is made (verify in Network tab)
+- [ ] All pages have notes available (navigation works)
+
+**Combined Upload Flow (Mismatched Hash)**
+- [ ] Upload PDF file that doesn't match the notes file's content_hash
+- [ ] Click "Start Learning" → Warning modal appears
+- [ ] Warning modal explains hash mismatch
+- [ ] "Cancel" button closes modal and returns to upload page
+- [ ] "Import Anyway" button proceeds with import despite mismatch
+- [ ] After "Import Anyway", Study page loads with notes
+- [ ] Toast confirms import
+
+**Edge Cases**
+- [ ] Upload only notes file (no PDF) → "Start Learning" remains disabled
+- [ ] Upload notes file with invalid frontmatter → Error toast shown
+- [ ] Upload notes file with unsupported version → Error toast shown
+- [ ] Remove notes file after selecting → Notes section reverts to file picker
+- [ ] Clear cache, then upload PDF + notes → Works correctly (fresh start)
+
+**Client-Side Hash Validation**
+- [ ] Content hash is computed client-side from PDF bytes
+- [ ] Hash computation matches backend algorithm (SHA-256, first 16 hex chars)
+- [ ] Large PDFs don't freeze the UI during hash computation
 
 #### Inline Notes Editing
 - [ ] Edit button/toggle is visible on notes panel
@@ -474,6 +516,7 @@ For rapid testing, verify these critical paths:
 10. [ ] Dark mode toggle switches theme correctly
 11. [ ] Pane divider can be dragged to resize
 12. [ ] Edit mode allows modifying notes
+13. [ ] PDF + Markdown upload works (skips API when hash matches)
 
 ---
 
@@ -536,7 +579,8 @@ When instructed to perform Playwright testing, follow this workflow:
    PHASE 6: New Features Testing
    └── Text Search (9 items)
    └── Markdown Export (7 items)
-   └── Markdown Import (7 items)
+   └── Markdown Import - Study Page (7 items)
+   └── PDF + Markdown Combined Upload (19 items) ← NEW
    └── Inline Notes Editing (8 items)
    └── Inline Expansion Editing (5 items)
    └── Dark Mode Toggle (10 items)
@@ -551,6 +595,6 @@ When instructed to perform Playwright testing, follow this workflow:
 5. Provide final summary report with all results
 ```
 
-**Total checklist items**: ~178 items (varies based on pages tested)
+**Total checklist items**: ~197 items (varies based on pages tested)
 
 **Minimum testing time estimate**: Allow for iterative testing as bugs may require fixes and re-verification.
