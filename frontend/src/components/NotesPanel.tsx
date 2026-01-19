@@ -268,155 +268,149 @@ export default function NotesPanel({
   const canUseInlineCommands = !!(notes && userProfile && onAddExpansion);
 
   return (
-    <div className="p-4 sm:p-6 relative animate-fade-in" ref={notesContainerRef}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-          Notes for Page {pageNumber}
-        </h2>
-        <div className="flex items-center gap-2">
-          {/* Emphasis button */}
-          {onEmphasisDraftChange && onIntegrateEmphasis && (
-            <button
-              onClick={() => setIsEmphasisOpen(!isEmphasisOpen)}
-              disabled={!notes || isEditMode}
-              className={`p-2 rounded-lg transition-colors ${
-                isEmphasisOpen
-                  ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              } ${!notes || isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={isEmphasisOpen ? 'Close emphasis' : 'Add emphasis'}
-            >
-              {/* Sparkles icon */}
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-            </button>
-          )}
-          {/* Edit button */}
-          <button
-            onClick={handleToggleEdit}
-            className={`p-2 rounded-lg transition-colors ${
-              isEditMode
-                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
-            title={isEditMode ? 'View notes' : 'Edit notes'}
-          >
-            {isEditMode ? (
-              // Eye icon for "view mode"
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            ) : (
-              // Pencil icon for "edit mode"
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+    <div className="relative animate-fade-in" ref={notesContainerRef}>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            Notes for Page {pageNumber}
+          </h2>
+          <div className="flex items-center gap-2">
+            {/* Emphasis button */}
+            {onEmphasisDraftChange && onIntegrateEmphasis && (
+              <button
+                onClick={() => setIsEmphasisOpen(!isEmphasisOpen)}
+                disabled={!notes || isEditMode}
+                className={`p-2 rounded-lg transition-colors ${
+                  isEmphasisOpen
+                    ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                } ${!notes || isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={isEmphasisOpen ? 'Close emphasis' : 'Add emphasis'}
+              >
+                {/* Sparkles icon */}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+              </button>
             )}
-          </button>
+            {/* Edit button */}
+            <button
+              onClick={handleToggleEdit}
+              className={`p-2 rounded-lg transition-colors ${
+                isEditMode
+                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+              title={isEditMode ? 'View notes' : 'Edit notes'}
+            >
+              {isEditMode ? (
+                // Eye icon for "view mode"
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              ) : (
+                // Pencil icon for "edit mode"
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Hint for inline commands - show different hints based on mode */}
-      {canUseInlineCommands && !isEditMode && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-          💡 Select any text to elaborate, simplify, or create an analogy
-        </p>
-      )}
-      {isEditMode && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-          ✏️ Editing raw markdown. Exit edit mode to use AI commands.
-        </p>
-      )}
+      {/* Scrollable content */}
+      <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+        {/* Emphasis Box - show when open and emphasis handlers are available */}
+        {isEmphasisOpen && onEmphasisDraftChange && onIntegrateEmphasis && notes && (
+          <EmphasisBox
+            draft={emphasisDraft}
+            onDraftChange={onEmphasisDraftChange}
+            onIntegrate={onIntegrateEmphasis}
+            onClose={() => setIsEmphasisOpen(false)}
+            isIntegrating={isIntegratingEmphasis}
+          />
+        )}
 
-      {/* Emphasis Box - show when open and emphasis handlers are available */}
-      {isEmphasisOpen && onEmphasisDraftChange && onIntegrateEmphasis && notes && (
-        <EmphasisBox
-          draft={emphasisDraft}
-          onDraftChange={onEmphasisDraftChange}
-          onIntegrate={onIntegrateEmphasis}
-          onClose={() => setIsEmphasisOpen(false)}
-          isIntegrating={isIntegratingEmphasis}
-        />
-      )}
+        {/* Selection Toolbar - only show when not editing */}
+        {canUseInlineCommands && !isEditMode && (
+          <SelectionToolbar
+            selectionRect={selection?.rect ?? new DOMRect()}
+            containerRef={notesContainerRef}
+            onCommand={handleCommand}
+            isLoading={isExecutingCommand}
+            loadingCommand={executingCommandType}
+            visible={!!selection || isExecutingCommand}
+          />
+        )}
 
-      {/* Selection Toolbar - only show when not editing */}
-      {canUseInlineCommands && !isEditMode && (
-        <SelectionToolbar
-          selectionRect={selection?.rect ?? new DOMRect()}
-          containerRef={notesContainerRef}
-          onCommand={handleCommand}
-          isLoading={isExecutingCommand}
-          loadingCommand={executingCommandType}
-          visible={!!selection || isExecutingCommand}
-        />
-      )}
+        {/* Markdown content OR Editor */}
+        {isEditMode ? (
+          <textarea
+            value={editedMarkdown}
+            onChange={handleMarkdownChange}
+            className="w-full min-h-[400px] p-4 rounded-lg border border-gray-300 dark:border-gray-600
+                       bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
+                       font-mono text-sm resize-y focus:outline-none focus:ring-2
+                       focus:ring-blue-500 dark:focus:ring-blue-400"
+            placeholder="Edit your notes here (Markdown supported)..."
+          />
+        ) : (
+          <MarkdownRenderer content={notes.markdown} highlightTerm={highlightTerm} />
+        )}
 
-      {/* Markdown content OR Editor */}
-      {isEditMode ? (
-        <textarea
-          value={editedMarkdown}
-          onChange={handleMarkdownChange}
-          className="w-full min-h-[400px] p-4 rounded-lg border border-gray-300 dark:border-gray-600
-                     bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
-                     font-mono text-sm resize-y focus:outline-none focus:ring-2
-                     focus:ring-blue-500 dark:focus:ring-blue-400"
-          placeholder="Edit your notes here (Markdown supported)..."
-        />
-      ) : (
-        <MarkdownRenderer content={notes.markdown} highlightTerm={highlightTerm} />
-      )}
-
-      {/* Expansions */}
-      {expansions.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">
-            Expansions ({expansions.length})
-          </h3>
-          {expansions.map((expansion) => (
-            <ExpansionBlock
-              key={expansion.id}
-              expansion={expansion}
-              isEditMode={isEditMode}
-              onRemove={
-                onRemoveExpansion
-                  ? () => onRemoveExpansion(expansion.id)
-                  : undefined
-              }
-              onUpdate={
-                onUpdateExpansion
-                  ? (selectedText, content) =>
-                      onUpdateExpansion(expansion.id, selectedText, content)
-                  : undefined
-              }
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Topic labels as badges */}
-      {notes.topic_labels && notes.topic_labels.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap gap-2">
-            {notes.topic_labels.map((label, idx) => (
-              <span
-                key={idx}
-                className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-1 rounded"
-              >
-                {label}
-              </span>
+        {/* Expansions */}
+        {expansions.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">
+              Expansions ({expansions.length})
+            </h3>
+            {expansions.map((expansion) => (
+              <ExpansionBlock
+                key={expansion.id}
+                expansion={expansion}
+                isEditMode={isEditMode}
+                onRemove={
+                  onRemoveExpansion
+                    ? () => onRemoveExpansion(expansion.id)
+                    : undefined
+                }
+                onUpdate={
+                  onUpdateExpansion
+                    ? (selectedText, content) =>
+                        onUpdateExpansion(expansion.id, selectedText, content)
+                    : undefined
+                }
+              />
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Page references */}
-      {notes.page_references && notes.page_references.length > 0 && (
-        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Referenced pages: {notes.page_references.join(', ')}
-        </div>
-      )}
+        {/* Topic labels as badges */}
+        {notes.topic_labels && notes.topic_labels.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap gap-2">
+              {notes.topic_labels.map((label, idx) => (
+                <span
+                  key={idx}
+                  className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-1 rounded"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Page references */}
+        {notes.page_references && notes.page_references.length > 0 && (
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Referenced pages: {notes.page_references.join(', ')}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
