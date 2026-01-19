@@ -147,6 +147,20 @@ export default function ApiKeyInput() {
             Get a free API key from Google AI Studio
           </a>
 
+          {/* Rate limit note */}
+          <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-md">
+            <strong>Getting rate limit errors?</strong> Enable Cloud Billing in{' '}
+            <a
+              href="https://aistudio.google.com/app/plan_information"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-amber-700 dark:hover:text-amber-300"
+            >
+              Google AI Studio
+            </a>
+            {' '}(Dashboard → Usage and Billing → Set up Billing) to increase your quota.
+          </p>
+
           {/* Input and validate button */}
           <div className="flex gap-2">
             <div className="flex-1 relative">
