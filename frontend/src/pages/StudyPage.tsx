@@ -55,6 +55,9 @@ export default function StudyPage() {
   const openSearch = useSearchStore((state) => state.openSearch);
   const highlightTerm = useSearchStore((state) => state.highlightTerm);
   const setHighlightTerm = useSearchStore((state) => state.setHighlightTerm);
+  const highlightInPDF = useSearchStore((state) => state.highlightInPDF);
+  const highlightInNotes = useSearchStore((state) => state.highlightInNotes);
+  const setHighlightSources = useSearchStore((state) => state.setHighlightSources);
 
   // Track if we've logged cache hits for this PDF to avoid duplicate logs
   const cacheHitsLoggedRef = useRef<string | null>(null);
@@ -324,10 +327,11 @@ export default function StudyPage() {
     if (highlightTerm) {
       const timer = setTimeout(() => {
         setHighlightTerm(null);
+        setHighlightSources(false, false);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [highlightTerm, setHighlightTerm]);
+  }, [highlightTerm, setHighlightTerm, setHighlightSources]);
 
   // Export functionality
   const { toast } = useToast();
@@ -462,6 +466,10 @@ export default function StudyPage() {
   const currentPageContent = parsedPDF?.pages[currentPage - 1];
   const currentExpansions = getExpansionsForPage(currentPage);
 
+  // Compute conditional highlight terms based on which sources were selected when clicking result
+  const pdfHighlightTerm = highlightInPDF ? highlightTerm : null;
+  const notesHighlightTerm = highlightInNotes ? highlightTerm : null;
+
   return (
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 transition-colors">
       {/* Header */}
@@ -573,6 +581,7 @@ export default function StudyPage() {
               totalPages={totalPages}
               currentPage={currentPage}
               onPageChange={handlePageChange}
+              highlightTerm={pdfHighlightTerm}
             />
           </div>
 
@@ -605,7 +614,7 @@ export default function StudyPage() {
               userProfile={profile}
               sessionId={parsedPDF?.session_id}
               onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
-              highlightTerm={highlightTerm}
+              highlightTerm={notesHighlightTerm}
               emphasisDraft={emphasisDrafts[currentPage] ?? ''}
               onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
               onIntegrateEmphasis={handleIntegrateEmphasis}
@@ -627,6 +636,7 @@ export default function StudyPage() {
                   totalPages={totalPages}
                   currentPage={currentPage}
                   onPageChange={handlePageChange}
+                  highlightTerm={pdfHighlightTerm}
                 />
               </div>
             ) : (
@@ -651,7 +661,7 @@ export default function StudyPage() {
                   userProfile={profile}
                   sessionId={parsedPDF?.session_id}
                   onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
-                  highlightTerm={highlightTerm}
+                  highlightTerm={notesHighlightTerm}
                   emphasisDraft={emphasisDrafts[currentPage] ?? ''}
                   onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
                   onIntegrateEmphasis={handleIntegrateEmphasis}

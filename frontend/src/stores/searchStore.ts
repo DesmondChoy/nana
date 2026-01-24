@@ -22,6 +22,8 @@ interface SearchState {
   results: SearchResult[];
   selectedResultIndex: number; // For keyboard navigation
   highlightTerm: string | null; // Term to highlight in content after navigation
+  highlightInPDF: boolean; // Whether to highlight in PDF pane
+  highlightInNotes: boolean; // Whether to highlight in Notes pane
 
   // Actions
   openSearch: () => void;
@@ -31,6 +33,7 @@ interface SearchState {
   setResults: (results: SearchResult[]) => void;
   setSelectedResultIndex: (index: number) => void;
   setHighlightTerm: (term: string | null) => void;
+  setHighlightSources: (inPDF: boolean, inNotes: boolean) => void;
   clearSearch: () => void;
 }
 
@@ -45,6 +48,8 @@ export const useSearchStore = create<SearchState>((set) => ({
   results: [],
   selectedResultIndex: -1,
   highlightTerm: null,
+  highlightInPDF: false,
+  highlightInNotes: false,
 
   openSearch: () => set({ isOpen: true, highlightTerm: null }), // Clear highlight when opening new search
 
@@ -71,11 +76,16 @@ export const useSearchStore = create<SearchState>((set) => ({
 
   setHighlightTerm: (term) => set({ highlightTerm: term }),
 
+  setHighlightSources: (inPDF, inNotes) =>
+    set({ highlightInPDF: inPDF, highlightInNotes: inNotes }),
+
   clearSearch: () =>
     set({
       query: '',
       results: [],
       selectedResultIndex: -1,
       highlightTerm: null,
+      highlightInPDF: false,
+      highlightInNotes: false,
     }),
 }));

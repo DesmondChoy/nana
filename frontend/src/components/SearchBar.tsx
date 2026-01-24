@@ -20,6 +20,7 @@ export function SearchBar({ onNavigateToResult }: SearchBarProps) {
   const setFilters = useSearchStore((state) => state.setFilters);
   const setSelectedResultIndex = useSearchStore((state) => state.setSelectedResultIndex);
   const setHighlightTerm = useSearchStore((state) => state.setHighlightTerm);
+  const setHighlightSources = useSearchStore((state) => state.setHighlightSources);
 
   // Hook that performs the actual search
   useSearch();
@@ -77,6 +78,8 @@ export function SearchBar({ onNavigateToResult }: SearchBarProps) {
   };
 
   const handleResultClick = (result: SearchResult) => {
+    // Capture which filters were active when user clicked the result
+    setHighlightSources(filters.searchPDF, filters.searchNotes);
     // Set the highlight term before closing so content can highlight matches
     setHighlightTerm(query.trim());
     onNavigateToResult(result.pageNumber, result.source);

@@ -11,6 +11,7 @@ interface PDFViewerProps {
   totalPages: number;
   currentPage: number;
   onPageChange: (page: number) => void;
+  highlightTerm?: string | null;
 }
 
 export default function PDFViewer({
@@ -18,12 +19,14 @@ export default function PDFViewer({
   totalPages,
   currentPage,
   onPageChange,
+  highlightTerm,
 }: PDFViewerProps) {
   const [pageWidth, setPageWidth] = useState<number>(600);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   const onDocumentLoadSuccess = useCallback(() => {
     setIsLoading(false);
@@ -45,6 +48,68 @@ export default function PDFViewer({
       });
     }
   }, [currentPage]);
+
+  // Highlight search term in PDF text layer
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+
+    // Small delay to ensure text layer is rendered after page change
+    const timer = setTimeout(() => {
+      const container = pdfContainerRef.current;
+      if (!container) return;
+
+      const textLayer = container.querySelector('.textLayer');
+      if (!textLayer) return;
+
+      // Clear existing highlights by restoring original text
+      const existingMarks = textLayer.querySelectorAll('mark[data-search-highlight]');
+      existingMarks.forEach((mark) => {
+        const parent = mark.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+          parent.normalize(); // Merge adjacent text nodes
+        }
+      });
+
+      // If no highlight term, we're done
+      if (!highlightTerm) return;
+
+      // Find all text spans in the text layer
+      const spans = textLayer.querySelectorAll('span');
+      const searchTermLower = highlightTerm.toLowerCase();
+
+      spans.forEach((span) => {
+        const text = span.textContent || '';
+        const textLower = text.toLowerCase();
+        const index = textLower.indexOf(searchTermLower);
+
+        if (index !== -1) {
+          // Split the text and wrap the match in a <mark> element
+          const before = text.slice(0, index);
+          const match = text.slice(index, index + highlightTerm.length);
+          const after = text.slice(index + highlightTerm.length);
+
+          // Create new nodes
+          const fragment = document.createDocumentFragment();
+          if (before) fragment.appendChild(document.createTextNode(before));
+
+          const mark = document.createElement('mark');
+          mark.setAttribute('data-search-highlight', 'true');
+          mark.className = 'bg-yellow-300 dark:bg-yellow-500/60 rounded px-0.5';
+          mark.textContent = match;
+          fragment.appendChild(mark);
+
+          if (after) fragment.appendChild(document.createTextNode(after));
+
+          // Replace span contents
+          span.textContent = '';
+          span.appendChild(fragment);
+        }
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [highlightTerm, currentPage]);
 
   // Show fallback if no PDF URL
   if (!pdfUrl) {
@@ -83,7 +148,7 @@ export default function PDFViewer({
 
       {/* Main PDF content */}
       <div className="flex-1 overflow-auto p-2 sm:p-4 bg-gray-100 dark:bg-gray-900">
-        <div className="flex justify-center">
+        <div ref={pdfContainerRef} className="flex justify-center">
           <Document
             file={pdfUrl}
             onLoadSuccess={onDocumentLoadSuccess}
