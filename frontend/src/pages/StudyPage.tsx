@@ -13,6 +13,7 @@ import { useResizablePanes } from '../hooks/useResizablePanes';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import ResizeDivider from '../components/ResizeDivider';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { HelpModal } from '../components/HelpModal';
 
 export default function StudyPage() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
@@ -74,6 +75,9 @@ export default function StudyPage() {
 
   // Edit mode state (controlled at page level for keyboard shortcut)
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Help modal state
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Resizable panes for desktop layout
   const {
@@ -298,6 +302,9 @@ export default function StudyPage() {
         event.preventDefault();
         desktopNotesScrollRef.current?.scrollBy({ top: 100, behavior: 'smooth' });
         mobileNotesScrollRef.current?.scrollBy({ top: 100, behavior: 'smooth' });
+      } else if (event.key === '?') {
+        event.preventDefault();
+        setIsHelpOpen(true);
       }
     };
 
@@ -479,6 +486,18 @@ export default function StudyPage() {
           )}
 
           <ThemeToggle />
+
+          {/* Help button */}
+          <button
+            onClick={() => setIsHelpOpen(true)}
+            className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
 
           {/* Export button - desktop */}
           <button
@@ -724,6 +743,9 @@ export default function StudyPage() {
         onCancel={handleStay}
         variant="warning"
       />
+
+      {/* Help modal (triggered by ?) */}
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
 
       {/* Search bar (triggered by Cmd+F) */}
       {isSearchOpen && <SearchBar onNavigateToResult={handleSearchNavigate} />}
