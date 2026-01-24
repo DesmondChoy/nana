@@ -6,7 +6,7 @@ import StorageWarning from '../components/StorageWarning';
 import ThemeToggle from '../components/ThemeToggle';
 import ApiKeyInput from '../components/ApiKeyInput';
 import { ImportWarningModal } from '../components/ImportWarningModal';
-import { validateImport, parseMarkdownImport, parseFrontmatter, computeContentHash, type ImportValidation } from '../utils';
+import { validateImport, parseMarkdownImport, parseFrontmatter, computeContentHash, extractAllPagesText, type ImportValidation } from '../utils';
 import { useToast } from '../hooks/useToast';
 import type {
   UserProfile,
@@ -330,6 +330,7 @@ export default function UploadPage() {
   const cachedContentHash = usePDFStore((state) => state.cachedContentHash);
   const importNotesFromMarkdown = usePDFStore((state) => state.importNotesFromMarkdown);
   const importWithFreshPdf = usePDFStore((state) => state.importWithFreshPdf);
+  const setAllExtractedPageText = usePDFStore((state) => state.setAllExtractedPageText);
 
   const cachedPagesCount = Object.keys(notesCache).length;
 
@@ -339,6 +340,7 @@ export default function UploadPage() {
   const [selectedNotesFile, setSelectedNotesFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isIndexing, setIsIndexing] = useState(false);
 
   // Import notes state
   const [importFileContent, setImportFileContent] = useState<string | null>(null);
@@ -445,8 +447,20 @@ export default function UploadPage() {
           return;
         }
 
-        // Create blob URL and import
+        // Create blob URL and extract text for search
         const fileUrl = URL.createObjectURL(selectedFile);
+
+        // Extract text client-side for PDF search (since we're skipping the API)
+        setIsIndexing(true);
+        try {
+          const extractedText = await extractAllPagesText(fileUrl, frontmatter.total_pages);
+          setAllExtractedPageText(extractedText);
+        } catch (err) {
+          console.warn('[NANA] Client-side text extraction failed:', err);
+          // Continue without extracted text - search will be limited to notes
+        }
+        setIsIndexing(false);
+
         importWithFreshPdf(
           selectedFile.name,
           selectedFile.size,
@@ -483,6 +497,18 @@ export default function UploadPage() {
       // Skip API: create blob URL and resume from cache
       console.log('[NANA] Cache hit! Skipping Gemini API call.');
       const fileUrl = URL.createObjectURL(selectedFile);
+
+      // Extract text client-side for PDF search (since we're skipping the API)
+      setIsIndexing(true);
+      try {
+        const extractedText = await extractAllPagesText(fileUrl, cachedTotalPages);
+        setAllExtractedPageText(extractedText);
+      } catch (err) {
+        console.warn('[NANA] Client-side text extraction failed:', err);
+        // Continue without extracted text - search will be limited to notes
+      }
+      setIsIndexing(false);
+
       resumeFromCache(fileUrl);
     } else {
       // Normal flow: call the API
@@ -505,6 +531,7 @@ export default function UploadPage() {
     notesCache,
     resumeFromCache,
     importWithFreshPdf,
+    setAllExtractedPageText,
     toast,
   ]);
 
@@ -610,7 +637,7 @@ export default function UploadPage() {
   );
 
   // Handle import warning modal actions
-  const handleImportProceed = useCallback(() => {
+  const handleImportProceed = useCallback(async () => {
     if (!importFileContent || !importValidation?.frontmatter) return;
 
     const importedNotes = parseMarkdownImport(importFileContent);
@@ -625,6 +652,18 @@ export default function UploadPage() {
     if (pendingPdfHash && selectedFile) {
       // Fresh PDF import - use importWithFreshPdf
       const fileUrl = URL.createObjectURL(selectedFile);
+
+      // Extract text client-side for PDF search (since we're skipping the API)
+      setIsIndexing(true);
+      try {
+        const extractedText = await extractAllPagesText(fileUrl, importValidation.frontmatter.total_pages);
+        setAllExtractedPageText(extractedText);
+      } catch (err) {
+        console.warn('[NANA] Client-side text extraction failed:', err);
+        // Continue without extracted text - search will be limited to notes
+      }
+      setIsIndexing(false);
+
       importWithFreshPdf(
         selectedFile.name,
         selectedFile.size,
@@ -647,7 +686,7 @@ export default function UploadPage() {
     setImportValidation(null);
     setShowImportWarning(false);
     setPendingPdfHash(null);
-  }, [importFileContent, importValidation, pendingPdfHash, selectedFile, importWithFreshPdf, importNotesFromMarkdown, toast]);
+  }, [importFileContent, importValidation, pendingPdfHash, selectedFile, importWithFreshPdf, importNotesFromMarkdown, setAllExtractedPageText, toast]);
 
   const handleImportCancel = useCallback(() => {
     setImportFileContent(null);
@@ -912,7 +951,12 @@ export default function UploadPage() {
               disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              {isSubmitting ? (
+              {isIndexing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Indexing PDF for search...
+                </span>
+              ) : isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Processing...

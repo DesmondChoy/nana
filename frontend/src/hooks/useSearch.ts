@@ -82,6 +82,7 @@ export function useSearch() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
   const notesCache = usePDFStore((state) => state.notesCache);
   const currentPage = usePDFStore((state) => state.currentPage);
+  const extractedPageText = usePDFStore((state) => state.extractedPageText);
 
   const query = useSearchStore((state) => state.query);
   const filters = useSearchStore((state) => state.filters);
@@ -98,11 +99,13 @@ export function useSearch() {
       return Array.from({ length: parsedPDF.total_pages }, (_, i) => i + 1);
     }
 
-    // Fallback when resuming from cache (parsedPDF is null)
-    // Use notesCache keys to determine which pages exist
-    const cachedPages = Object.keys(notesCache).map(Number).sort((a, b) => a - b);
-    return cachedPages.length > 0 ? cachedPages : [];
-  }, [parsedPDF, notesCache, filters.scope, currentPage]);
+    // Fallback when resuming from cache or skip-API (parsedPDF is null)
+    // Use extractedPageText or notesCache keys to determine which pages exist
+    const extractedPages = Object.keys(extractedPageText).map(Number);
+    const cachedPages = Object.keys(notesCache).map(Number);
+    const allPages = [...new Set([...extractedPages, ...cachedPages])].sort((a, b) => a - b);
+    return allPages.length > 0 ? allPages : [];
+  }, [parsedPDF, notesCache, extractedPageText, filters.scope, currentPage]);
 
   // The main search function
   const executeSearch = useCallback(() => {
@@ -117,11 +120,13 @@ export function useSearch() {
 
     for (const pageNum of pagesToSearch) {
       // Search PDF text if filter is enabled
-      if (filters.searchPDF && parsedPDF) {
-        const pageContent = parsedPDF.pages.find((p) => p.page_number === pageNum);
-        if (pageContent?.text) {
+      if (filters.searchPDF) {
+        // Try parsedPDF first (server-extracted), fallback to extractedPageText (client-extracted)
+        const text = parsedPDF?.pages.find((p) => p.page_number === pageNum)?.text
+          ?? extractedPageText[pageNum];
+        if (text) {
           const pdfMatches = findMatches(
-            pageContent.text,
+            text,
             trimmedQuery,
             pageNum,
             'pdf'
@@ -168,7 +173,7 @@ export function useSearch() {
 
     // Limit results and update store
     setResults(allResults.slice(0, MAX_RESULTS));
-  }, [query, pagesToSearch, filters, parsedPDF, notesCache, setResults]);
+  }, [query, pagesToSearch, filters, parsedPDF, notesCache, extractedPageText, setResults]);
 
   // Debounced search execution
   useEffect(() => {

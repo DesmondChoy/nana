@@ -39,6 +39,9 @@ interface PDFState {
   pdfFileUrl: string | null; // Blob URL for rendering - not persisted
   currentPage: number;
 
+  // Client-extracted page text (fallback when parsedPDF is null, e.g., skip-API scenarios)
+  extractedPageText: Record<number, string>;
+
   // Upload state (for immediate navigation)
   uploadState: {
     isUploading: boolean;
@@ -112,6 +115,9 @@ interface PDFState {
   clearEmphasisDraft: (pageNumber: number) => void;
   // Clear session but preserve cache (for "Leave Study Session")
   clearSession: () => void;
+  // Client-side text extraction actions
+  setExtractedPageText: (pageNumber: number, text: string) => void;
+  setAllExtractedPageText: (texts: Record<number, string>) => void;
 }
 
 // Check if cached notes are in the old format (sections-based) vs new format (markdown-based)
@@ -131,6 +137,7 @@ export const usePDFStore = create<PDFState>()(
       parsedPDF: null,
       pdfFileUrl: null,
       currentPage: 1,
+      extractedPageText: {},
       uploadState: {
         isUploading: false,
         error: null,
@@ -271,6 +278,7 @@ export const usePDFStore = create<PDFState>()(
           parsedPDF: null,
           pdfFileUrl: null,
           currentPage: 1,
+          extractedPageText: {},
           uploadState: {
             isUploading: false,
             error: null,
@@ -492,6 +500,7 @@ export const usePDFStore = create<PDFState>()(
         set({
           parsedPDF: null,
           pdfFileUrl: null,
+          extractedPageText: {},
           uploadState: {
             isUploading: false,
             error: null,
@@ -506,6 +515,17 @@ export const usePDFStore = create<PDFState>()(
           },
         });
       },
+
+      setExtractedPageText: (pageNumber, text) =>
+        set((state) => ({
+          extractedPageText: {
+            ...state.extractedPageText,
+            [pageNumber]: text,
+          },
+        })),
+
+      setAllExtractedPageText: (texts) =>
+        set({ extractedPageText: texts }),
     }),
     {
       name: 'nana-pdf-storage',
