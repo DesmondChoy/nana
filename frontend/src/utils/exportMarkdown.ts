@@ -1,12 +1,19 @@
 import type {
-  ParsedPDF,
   PageNotes,
   Expansion,
   InlineCommandType,
 } from '../types';
 
+/**
+ * Minimal metadata needed for export - can come from either ParsedPDF or cached values
+ */
+export interface ExportMetadata {
+  original_filename: string;
+  total_pages: number;
+}
+
 interface ExportOptions {
-  parsedPDF: ParsedPDF;
+  metadata: ExportMetadata;
   notesCache: Record<number, PageNotes>;
   contentHash: string;
   emphasisDrafts?: Record<number, string>;
@@ -72,14 +79,14 @@ function formatEmphasisDraft(draft: string): string {
  * Generate YAML frontmatter for import matching
  */
 function generateFrontmatter(
-  parsedPDF: ParsedPDF,
+  metadata: ExportMetadata,
   contentHash: string
 ): string {
   return `---
 nana_version: 1
 content_hash: ${contentHash}
-original_filename: ${parsedPDF.original_filename}
-total_pages: ${parsedPDF.total_pages}
+original_filename: ${metadata.original_filename}
+total_pages: ${metadata.total_pages}
 exported_at: ${new Date().toISOString()}
 ---`;
 }
@@ -100,7 +107,7 @@ function generateTOC(totalPages: number): string {
  * Generate complete Markdown export from notes cache
  */
 export function generateMarkdownExport({
-  parsedPDF,
+  metadata,
   notesCache,
   contentHash,
   emphasisDrafts = {},
@@ -108,16 +115,16 @@ export function generateMarkdownExport({
   const parts: string[] = [];
 
   // YAML frontmatter for import matching
-  parts.push(generateFrontmatter(parsedPDF, contentHash));
+  parts.push(generateFrontmatter(metadata, contentHash));
 
   // Title
-  parts.push(`# Study Notes: ${parsedPDF.original_filename}\n`);
+  parts.push(`# Study Notes: ${metadata.original_filename}\n`);
 
   // Table of Contents
-  parts.push(generateTOC(parsedPDF.total_pages));
+  parts.push(generateTOC(metadata.total_pages));
 
   // Each page's notes
-  for (let pageNum = 1; pageNum <= parsedPDF.total_pages; pageNum++) {
+  for (let pageNum = 1; pageNum <= metadata.total_pages; pageNum++) {
     const pageNotes = notesCache[pageNum];
     const emphasisDraft = emphasisDrafts[pageNum];
 

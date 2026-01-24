@@ -339,19 +339,25 @@ export default function StudyPage() {
   const isExportReady = totalPages > 0 && Object.keys(notesCache).length >= totalPages;
 
   const handleExport = useCallback(() => {
-    if (!parsedPDF || !isExportReady || !cachedContentHash) return;
+    // Allow export with either parsedPDF or cached metadata (for cache-only sessions)
+    if (!isExportReady || !cachedContentHash || !cachedFilename || !totalPages) return;
+
+    // Build metadata from parsedPDF if available, otherwise use cached values
+    const metadata = parsedPDF
+      ? { original_filename: parsedPDF.original_filename, total_pages: parsedPDF.total_pages }
+      : { original_filename: cachedFilename, total_pages: totalPages };
 
     const markdown = generateMarkdownExport({
-      parsedPDF,
+      metadata,
       notesCache,
       contentHash: cachedContentHash,
       emphasisDrafts,
     });
-    const filename = getExportFilename(parsedPDF.original_filename);
-    downloadMarkdown(markdown, filename);
+    const exportFilename = getExportFilename(metadata.original_filename);
+    downloadMarkdown(markdown, exportFilename);
 
-    toast.success(`Exported ${filename}`);
-  }, [parsedPDF, notesCache, isExportReady, cachedContentHash, emphasisDrafts, toast]);
+    toast.success(`Exported ${exportFilename}`);
+  }, [parsedPDF, notesCache, isExportReady, cachedContentHash, cachedFilename, totalPages, emphasisDrafts, toast]);
 
   // Handle emphasis integration
   const handleIntegrateEmphasis = useCallback(async () => {
