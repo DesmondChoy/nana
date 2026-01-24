@@ -410,6 +410,42 @@ This feature allows uploading a PDF with pre-existing notes without requiring an
 - [ ] Hash computation matches backend algorithm (SHA-256, first 16 hex chars)
 - [ ] Large PDFs don't freeze the UI during hash computation
 
+#### Cache-Only Session Functionality
+After entering a cache-only session (via PDF + Markdown upload), verify all Study Page features work correctly. This tests the fallback paths when `parsedPDF` is null.
+
+**Prerequisites**: Complete the "Combined Upload Flow (Matching Hash)" checklist above first.
+
+**Core Features (parsedPDF is null)**
+- [ ] Export button is enabled (not grayed out)
+- [ ] Clicking Export downloads markdown file with correct filename
+- [ ] Toast shows "Exported [filename]"
+- [ ] Page navigation (Previous/Next) works correctly
+- [ ] Keyboard navigation (Arrow keys) works
+- [ ] Page counter shows correct "Page X of Y"
+
+**Search (Cmd/Ctrl+F)**
+- [ ] Search bar opens
+- [ ] Entering a term shows results
+- [ ] Results include matches from notes
+- [ ] Clicking a result navigates to correct page
+- [ ] Highlight appears on navigated page
+
+**Edit Mode (Cmd/Ctrl+E)**
+- [ ] Edit button is clickable
+- [ ] Switching to edit mode shows markdown editor
+- [ ] Edits can be made and saved
+- [ ] Exiting edit mode renders updated content
+
+**Emphasis Feature**
+- [ ] Add emphasis button is visible
+- [ ] Can type emphasis content
+- [ ] Integrate button works (or gracefully handles missing page content)
+
+**PDF Viewer (Cache-Only Behavior)**
+- [ ] PDF displays correctly (loaded from pdfFileUrl, not parsedPDF)
+- [ ] Zoom controls work
+- [ ] Thumbnail navigation works
+
 #### Inline Notes Editing
 - [ ] Edit button/toggle is visible on notes panel
 - [ ] Clicking edit switches to markdown editor view
@@ -507,6 +543,11 @@ These tests verify that previously fixed bugs haven't regressed:
 - [ ] Cmd+F (Mac) and Ctrl+F (Windows/Linux) both open search
 - [ ] Keyboard shortcuts work in all browsers (Chrome, Firefox, Safari)
 
+**Export in Cache-Only Mode** (fix: `e6560a8`)
+- [ ] After skip-API import, Export button is enabled
+- [ ] Export downloads file with correct content
+- [ ] No console errors during export
+
 ---
 
 ## Quick Smoke Test Checklist
@@ -526,6 +567,7 @@ For rapid testing, verify these critical paths:
 11. [ ] Pane divider can be dragged to resize
 12. [ ] Edit mode allows modifying notes
 13. [ ] PDF + Markdown upload works (skips API when hash matches)
+14. [ ] After PDF + Markdown upload, Export Notes works (cache-only mode)
 
 ---
 
@@ -589,7 +631,8 @@ When instructed to perform Playwright testing, follow this workflow:
    └── Text Search (9 items)
    └── Markdown Export (7 items)
    └── Markdown Import - Study Page (7 items)
-   └── PDF + Markdown Combined Upload (19 items) ← NEW
+   └── PDF + Markdown Combined Upload (19 items)
+   └── Cache-Only Session Functionality (21 items) ← NEW
    └── Inline Notes Editing (6 items + 9 hotkey items)
    └── Inline Expansion Editing (5 items)
    └── Dark Mode Toggle (10 items)
@@ -598,12 +641,12 @@ When instructed to perform Playwright testing, follow this workflow:
    └── Navigation Confirmation Dialog (6 items)
    └── BYOK API Key Input (7 items)
    └── Open-Ended Profile Fields (6 items)
-   └── Bug Fix Regression Tests (7 items)
+   └── Bug Fix Regression Tests (10 items)
 
 4. For each item: test → document result (✅/❌) → if failed, STOP and fix
 5. Provide final summary report with all results
 ```
 
-**Total checklist items**: ~197 items (varies based on pages tested)
+**Total checklist items**: ~221 items (varies based on pages tested)
 
 **Minimum testing time estimate**: Allow for iterative testing as bugs may require fixes and re-verification.
