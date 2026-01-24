@@ -76,32 +76,46 @@ export default function PDFViewer({
 
       // Find all text spans in the text layer
       const spans = textLayer.querySelectorAll('span');
-      const searchTermLower = highlightTerm.toLowerCase();
+
+      // Helper to escape regex special characters (e.g., "C++", "$100")
+      const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
       spans.forEach((span) => {
         const text = span.textContent || '';
-        const textLower = text.toLowerCase();
-        const index = textLower.indexOf(searchTermLower);
+        if (!text) return;
 
-        if (index !== -1) {
-          // Split the text and wrap the match in a <mark> element
-          const before = text.slice(0, index);
-          const match = text.slice(index, index + highlightTerm.length);
-          const after = text.slice(index + highlightTerm.length);
+        // Use regex to find ALL occurrences (case-insensitive, global)
+        const regex = new RegExp(escapeRegex(highlightTerm), 'gi');
+        const parts: (string | { match: string })[] = [];
+        let lastIndex = 0;
+        let match;
 
-          // Create new nodes
+        while ((match = regex.exec(text)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(text.slice(lastIndex, match.index));
+          }
+          parts.push({ match: match[0] });
+          lastIndex = regex.lastIndex;
+        }
+
+        if (lastIndex < text.length) {
+          parts.push(text.slice(lastIndex));
+        }
+
+        // Only modify DOM if we found matches
+        if (parts.some((p) => typeof p === 'object')) {
           const fragment = document.createDocumentFragment();
-          if (before) fragment.appendChild(document.createTextNode(before));
-
-          const mark = document.createElement('mark');
-          mark.setAttribute('data-search-highlight', 'true');
-          mark.className = 'bg-yellow-300 dark:bg-yellow-500/60 rounded px-0.5';
-          mark.textContent = match;
-          fragment.appendChild(mark);
-
-          if (after) fragment.appendChild(document.createTextNode(after));
-
-          // Replace span contents
+          parts.forEach((part) => {
+            if (typeof part === 'string') {
+              fragment.appendChild(document.createTextNode(part));
+            } else {
+              const mark = document.createElement('mark');
+              mark.setAttribute('data-search-highlight', 'true');
+              mark.className = 'bg-yellow-300 dark:bg-yellow-500/60 rounded px-0.5';
+              mark.textContent = part.match;
+              fragment.appendChild(mark);
+            }
+          });
           span.textContent = '';
           span.appendChild(fragment);
         }
