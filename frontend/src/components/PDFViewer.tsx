@@ -58,17 +58,20 @@ export default function PDFViewer({
       const container = pdfContainerRef.current;
       if (!container) return;
 
-      const textLayer = container.querySelector('.textLayer');
-      if (!textLayer) return;
+      // Get ALL text layers (PDF.js may render multiple for accessibility)
+      const textLayers = container.querySelectorAll('.textLayer');
+      if (textLayers.length === 0) return;
 
-      // Clear existing highlights by restoring original text
-      const existingMarks = textLayer.querySelectorAll('mark[data-search-highlight]');
-      existingMarks.forEach((mark) => {
-        const parent = mark.parentNode;
-        if (parent) {
-          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
-          parent.normalize(); // Merge adjacent text nodes
-        }
+      // Clear existing highlights from ALL text layers
+      textLayers.forEach((textLayer) => {
+        const existingMarks = textLayer.querySelectorAll('mark[data-search-highlight]');
+        existingMarks.forEach((mark) => {
+          const parent = mark.parentNode;
+          if (parent) {
+            parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+            parent.normalize(); // Merge adjacent text nodes
+          }
+        });
       });
 
       // If no highlight term, we're done
@@ -77,124 +80,104 @@ export default function PDFViewer({
       // Helper to escape regex special characters (e.g., "C++", "$100")
       const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-      // Get all non-empty spans with their text content
-      const spans = Array.from(textLayer.querySelectorAll('span')).filter(
-        (span) => span.textContent && span.textContent.length > 0
-      );
-
-      // Build combined text and track span boundaries
-      // Each entry: { span, startIndex, endIndex, text }
-      const spanInfo: { span: Element; startIndex: number; endIndex: number; text: string }[] = [];
-      let combinedText = '';
-
-      spans.forEach((span) => {
-        const text = span.textContent || '';
-        const startIndex = combinedText.length;
-        combinedText += text;
-        spanInfo.push({
-          span,
-          startIndex,
-          endIndex: combinedText.length,
-          text,
-        });
-      });
-
-      // Find all matches in the combined text
-      const regex = new RegExp(escapeRegex(highlightTerm), 'gi');
-      const matches: { start: number; end: number; text: string }[] = [];
-      let match;
-
-      while ((match = regex.exec(combinedText)) !== null) {
-        matches.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          text: match[0],
-        });
-      }
-
-      if (matches.length === 0) return;
-
-      // For each span, determine which portions need highlighting
-      // A match may span multiple spans, so we track highlight ranges per span
-      const spanHighlights = new Map<Element, { start: number; end: number }[]>();
-
-      matches.forEach((m) => {
-        // Find all spans that overlap with this match
-        spanInfo.forEach((info) => {
-          // Check if this span overlaps with the match
-          if (m.start < info.endIndex && m.end > info.startIndex) {
-            // Calculate the local highlight range within this span
-            const localStart = Math.max(0, m.start - info.startIndex);
-            const localEnd = Math.min(info.text.length, m.end - info.startIndex);
-
-            if (!spanHighlights.has(info.span)) {
-              spanHighlights.set(info.span, []);
-            }
-            spanHighlights.get(info.span)!.push({ start: localStart, end: localEnd });
-          }
-        });
-      });
-
-      // Apply highlights to each affected span
-      spanHighlights.forEach((ranges, span) => {
-        const text = span.textContent || '';
-
-        // Merge overlapping ranges and sort by start position
-        const mergedRanges = mergeRanges(ranges);
-
-        // Build the new content with highlights
-        const fragment = document.createDocumentFragment();
-        let lastEnd = 0;
-
-        mergedRanges.forEach((range) => {
-          // Add text before this highlight
-          if (range.start > lastEnd) {
-            fragment.appendChild(document.createTextNode(text.slice(lastEnd, range.start)));
-          }
-
-          // Add the highlighted portion
-          const mark = document.createElement('mark');
-          mark.setAttribute('data-search-highlight', 'true');
-          mark.className = 'bg-yellow-300 dark:bg-yellow-500/60 rounded px-0.5';
-          mark.textContent = text.slice(range.start, range.end);
-          fragment.appendChild(mark);
-
-          lastEnd = range.end;
-        });
-
-        // Add remaining text after last highlight
-        if (lastEnd < text.length) {
-          fragment.appendChild(document.createTextNode(text.slice(lastEnd)));
-        }
-
-        // Replace span contents
-        span.textContent = '';
-        span.appendChild(fragment);
-      });
-
       // Helper function to merge overlapping ranges
       function mergeRanges(ranges: { start: number; end: number }[]): { start: number; end: number }[] {
         if (ranges.length === 0) return [];
-
-        // Sort by start position
         const sorted = [...ranges].sort((a, b) => a.start - b.start);
         const merged: { start: number; end: number }[] = [sorted[0]];
-
         for (let i = 1; i < sorted.length; i++) {
           const last = merged[merged.length - 1];
           const current = sorted[i];
-
           if (current.start <= last.end) {
-            // Overlapping or adjacent - merge
             last.end = Math.max(last.end, current.end);
           } else {
-            // Non-overlapping - add new range
             merged.push(current);
           }
         }
-
         return merged;
       }
+
+      // Apply highlights to ALL text layers (PDF.js may have multiple)
+      textLayers.forEach((textLayer) => {
+        // Get all non-empty spans with their text content
+        const spans = Array.from(textLayer.querySelectorAll('span')).filter(
+          (span) => span.textContent && span.textContent.length > 0
+        );
+
+        // Build combined text and track span boundaries
+        const spanInfo: { span: Element; startIndex: number; endIndex: number; text: string }[] = [];
+        let combinedText = '';
+
+        spans.forEach((span) => {
+          const text = span.textContent || '';
+          const startIndex = combinedText.length;
+          combinedText += text;
+          spanInfo.push({
+            span,
+            startIndex,
+            endIndex: combinedText.length,
+            text,
+          });
+        });
+
+        // Find all matches in the combined text
+        const regex = new RegExp(escapeRegex(highlightTerm), 'gi');
+        const matches: { start: number; end: number; text: string }[] = [];
+        let match;
+
+        while ((match = regex.exec(combinedText)) !== null) {
+          matches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            text: match[0],
+          });
+        }
+
+        if (matches.length === 0) return;
+
+        // For each span, determine which portions need highlighting
+        const spanHighlights = new Map<Element, { start: number; end: number }[]>();
+
+        matches.forEach((m) => {
+          spanInfo.forEach((info) => {
+            if (m.start < info.endIndex && m.end > info.startIndex) {
+              const localStart = Math.max(0, m.start - info.startIndex);
+              const localEnd = Math.min(info.text.length, m.end - info.startIndex);
+              if (!spanHighlights.has(info.span)) {
+                spanHighlights.set(info.span, []);
+              }
+              spanHighlights.get(info.span)!.push({ start: localStart, end: localEnd });
+            }
+          });
+        });
+
+        // Apply highlights to each affected span
+        spanHighlights.forEach((ranges, span) => {
+          const text = span.textContent || '';
+          const mergedRanges = mergeRanges(ranges);
+          const fragment = document.createDocumentFragment();
+          let lastEnd = 0;
+
+          mergedRanges.forEach((range) => {
+            if (range.start > lastEnd) {
+              fragment.appendChild(document.createTextNode(text.slice(lastEnd, range.start)));
+            }
+            const mark = document.createElement('mark');
+            mark.setAttribute('data-search-highlight', 'true');
+            mark.className = 'bg-yellow-300 dark:bg-yellow-500/60 rounded px-0.5';
+            mark.textContent = text.slice(range.start, range.end);
+            fragment.appendChild(mark);
+            lastEnd = range.end;
+          });
+
+          if (lastEnd < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(lastEnd)));
+          }
+
+          span.textContent = '';
+          span.appendChild(fragment);
+        });
+      });
     }, 100);
 
     return () => clearTimeout(timer);
