@@ -33,9 +33,13 @@ export function useNavigationGuard({
     if (!enabled) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Modern browsers require all of these for the native dialog to appear:
+      // 1. preventDefault()
+      // 2. returnValue set to non-empty string
+      // 3. return a value from the handler
       e.preventDefault();
-      // Modern browsers ignore custom messages, but we need to set returnValue
-      // for the native dialog to appear
+      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      return e.returnValue;
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
