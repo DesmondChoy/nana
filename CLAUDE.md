@@ -96,6 +96,7 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 - No autonomous commits - propose with conventional commit format, user reviews
 - All LLM interactions logged to `debug/` folder (gitignored)
 - POC project - avoid over-engineering, document simpler alternatives
+- **UI/UX changes require Playwright testing** - After implementing or modifying UI/UX features, run the Playwright MCP testing workflow defined in `.claude/skills/playwright-testing.md`
 
 ## Landing the Plane (Session Completion)
 
