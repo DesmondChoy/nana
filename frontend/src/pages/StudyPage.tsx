@@ -104,7 +104,7 @@ export default function StudyPage() {
     handleLeave,
     requestLeave,
   } = useNavigationGuard({
-    enabled: !!parsedPDF,
+    enabled: !!(parsedPDF || pdfFileUrl),
     onConfirmLeave: handleReset,
   });
 
