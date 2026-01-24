@@ -30,6 +30,9 @@ interface NotesPanelProps {
   onEmphasisDraftChange?: (draft: string) => void;
   onIntegrateEmphasis?: () => Promise<void>;
   isIntegratingEmphasis?: boolean;
+  // For controlled edit mode (optional - falls back to internal state)
+  isEditMode?: boolean;
+  onToggleEditMode?: () => void;
 }
 
 // Skeleton loader component
@@ -109,12 +112,17 @@ export default function NotesPanel({
   onEmphasisDraftChange,
   onIntegrateEmphasis,
   isIntegratingEmphasis = false,
+  isEditMode: controlledEditMode,
+  onToggleEditMode,
 }: NotesPanelProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExecutingCommand, setIsExecutingCommand] = useState(false);
   const [executingCommandType, setExecutingCommandType] = useState<InlineCommandType | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [internalEditMode, setInternalEditMode] = useState(false);
   const [isEmphasisOpen, setIsEmphasisOpen] = useState(false);
+
+  // Support both controlled and uncontrolled edit mode
+  const isEditMode = controlledEditMode ?? internalEditMode;
   const [editedMarkdown, setEditedMarkdown] = useState('');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -163,13 +171,17 @@ export default function NotesPanel({
     [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection, notes]
   );
 
-  // Toggle edit mode
+  // Toggle edit mode - supports both controlled and uncontrolled modes
   const handleToggleEdit = useCallback(() => {
     if (!isEditMode && notes?.markdown) {
       setEditedMarkdown(notes.markdown);
     }
-    setIsEditMode(!isEditMode);
-  }, [isEditMode, notes?.markdown]);
+    if (onToggleEditMode) {
+      onToggleEditMode();
+    } else {
+      setInternalEditMode(!isEditMode);
+    }
+  }, [isEditMode, notes?.markdown, onToggleEditMode]);
 
   // Handle markdown changes with debounced save
   const handleMarkdownChange = useCallback(
@@ -197,11 +209,14 @@ export default function NotesPanel({
     }
   }, [notes?.markdown]);
 
-  // Reset edit mode and close emphasis box when page changes
+  // Reset internal edit mode and close emphasis box when page changes
+  // (controlled mode handles reset externally)
   useEffect(() => {
-    setIsEditMode(false);
+    if (controlledEditMode === undefined) {
+      setInternalEditMode(false);
+    }
     setIsEmphasisOpen(false);
-  }, [pageNumber]);
+  }, [pageNumber, controlledEditMode]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -268,9 +283,9 @@ export default function NotesPanel({
   const canUseInlineCommands = !!(notes && userProfile && onAddExpansion);
 
   return (
-    <div className="relative animate-fade-in" ref={notesContainerRef}>
+    <div className="relative animate-fade-in h-full flex flex-col" ref={notesContainerRef}>
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 shadow-sm">
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 shadow-sm flex-shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             Notes for Page {pageNumber}
@@ -321,8 +336,8 @@ export default function NotesPanel({
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+      {/* Scrollable content - flex-1 fills remaining height, min-h-0 prevents overflow */}
+      <div className={`px-4 sm:px-6 pb-4 sm:pb-6 ${isEditMode ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
         {/* Emphasis Box - show when open and emphasis handlers are available */}
         {isEmphasisOpen && onEmphasisDraftChange && onIntegrateEmphasis && notes && (
           <EmphasisBox
@@ -351,9 +366,9 @@ export default function NotesPanel({
           <textarea
             value={editedMarkdown}
             onChange={handleMarkdownChange}
-            className="w-full min-h-[400px] p-4 rounded-lg border border-gray-300 dark:border-gray-600
+            className="w-full flex-1 min-h-[200px] p-4 rounded-lg border border-gray-300 dark:border-gray-600
                        bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
-                       font-mono text-sm resize-y focus:outline-none focus:ring-2
+                       font-mono text-sm resize-none focus:outline-none focus:ring-2
                        focus:ring-blue-500 dark:focus:ring-blue-400"
             placeholder="Edit your notes here (Markdown supported)..."
           />

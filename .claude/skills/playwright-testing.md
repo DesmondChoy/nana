@@ -416,9 +416,18 @@ This feature allows uploading a PDF with pre-existing notes without requiring an
 - [ ] Editor shows raw markdown content
 - [ ] Changes auto-save after typing pause
 - [ ] Edited content renders correctly after exiting edit mode
-- [ ] Edit mode persists for current page during navigation
-- [ ] Cancel/Escape discards unsaved changes (if applicable)
 - [ ] Edited notes persist after browser refresh
+
+##### Edit Mode Hotkey (Cmd/Ctrl+E)
+- [ ] Cmd+E (Mac) / Ctrl+E (Windows) toggles edit mode ON
+- [ ] Cmd+E / Ctrl+E toggles edit mode OFF when already editing
+- [ ] Hotkey works even when focus is in search bar or other inputs
+- [ ] Edit button icon changes to eye icon when in edit mode
+- [ ] Edit button icon changes back to pencil when exiting edit mode
+- [ ] Navigating to different page resets edit mode to OFF
+- [ ] Edit textarea fills full panel height (matches PDF viewer height)
+- [ ] Textarea has minimum height fallback (~200px) for short content
+- [ ] Textarea is scrollable when content exceeds height
 
 #### Inline Expansion Editing
 - [ ] Edit button appears on expansion blocks in edit mode
@@ -581,7 +590,7 @@ When instructed to perform Playwright testing, follow this workflow:
    └── Markdown Export (7 items)
    └── Markdown Import - Study Page (7 items)
    └── PDF + Markdown Combined Upload (19 items) ← NEW
-   └── Inline Notes Editing (8 items)
+   └── Inline Notes Editing (6 items + 9 hotkey items)
    └── Inline Expansion Editing (5 items)
    └── Dark Mode Toggle (10 items)
    └── Toast Notifications (6 items)

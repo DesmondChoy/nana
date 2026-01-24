@@ -207,23 +207,64 @@ function extractTextContent(node: ReactNode): string {
 
 // Preprocess markdown to fix common issues from LLM output
 function preprocessMarkdown(markdown: string): string {
-  // Fix 1: Convert literal \n sequences to actual newlines
+  let processed = markdown;
+
+  // Fix 1: Restore LaTeX backslashes that were incorrectly parsed as JSON escape sequences
+  // When LLM outputs unescaped LaTeX commands in JSON, backslash + letter becomes control characters:
+  // - \b (backspace, ASCII 8) affects: \beta, \bf, \binom, etc.
+  // - \f (form-feed, ASCII 12) affects: \frac, \forall, etc.
+  // - \n (newline, ASCII 10) affects: \nu, \nabla, etc.
+  // - \r (carriage return, ASCII 13) affects: \rightarrow, \rho, etc.
+  // - \t (tab, ASCII 9) affects: \times, \theta, \tau, \text, etc.
+  //
+  // We only fix the most common patterns that are unlikely to have false positives.
+  // Control characters like form-feed (0x0C) followed by "rac" almost never occur naturally.
+
+  /* eslint-disable no-control-regex */
+  // \f (form-feed, 0x0C) patterns - safe, form-feed is rare in markdown
+  processed = processed.replace(/\x0Crac/g, '\\frac');
+  processed = processed.replace(/\x0Corall/g, '\\forall');
+
+  // \t (tab, 0x09) patterns - only fix within likely math contexts
+  // "tab + imes" is unlikely in normal text (would be "   imes" not a word)
+  processed = processed.replace(/\x09imes\b/g, '\\times');
+  // "tab + heta" followed by math/word boundary
+  processed = processed.replace(/\x09heta\b/g, '\\theta');
+  processed = processed.replace(/\x09au\b/g, '\\tau');
+  // \text{ is distinctive enough
+  processed = processed.replace(/\x09ext\{/g, '\\text{');
+  processed = processed.replace(/\x09extbf\{/g, '\\textbf{');
+
+  // \r (carriage return, 0x0D) patterns - CR is rare in web content
+  processed = processed.replace(/\x0Dightarrow/g, '\\rightarrow');
+  processed = processed.replace(/\x0Dho\b/g, '\\rho');
+
+  // \b (backspace, 0x08) patterns - backspace is extremely rare
+  processed = processed.replace(/\x08eta\b/g, '\\beta');
+  processed = processed.replace(/\x08ig([A-Z])/g, '\\big$1'); // \bigO, \bigCap, etc.
+  /* eslint-enable no-control-regex */
+
+  // NOTE: We intentionally skip \n patterns (\nu, \nabla) because newlines are
+  // very common in markdown and would cause many false positives.
+  // If these are needed, the user can edit the notes manually.
+
+  // Fix 2: Convert literal \n sequences to actual newlines
   // Gemini sometimes returns escaped newlines in JSON strings
   // /\\n/g in source code matches literal backslash + n in the string
-  let processed = markdown.replace(/\\n/g, '\n');
+  processed = processed.replace(/\\n/g, '\n');
 
-  // Fix 2: Convert ```latex...``` or ```math...``` code blocks to $$...$$ for KaTeX
+  // Fix 3: Convert ```latex...``` or ```math...``` code blocks to $$...$$ for KaTeX
   // LLMs often wrap LaTeX in code fences, but remark-math expects $$ delimiters
   processed = processed.replace(
     /```(?:latex|math)\s*\n([\s\S]*?)```/g,
     (_, content) => `$$\n${content.trim()}\n$$`
   );
 
-  // Fix 3: Ensure callout blockquotes have proper line continuation
+  // Fix 4: Ensure callout blockquotes have proper line continuation
   // Convert "> [!type] Title\n> Content" format properly
   processed = processed.replace(/\n>\s*/g, '\n> ');
 
-  // Fix 4: Add blank line after callout title to separate title from content
+  // Fix 5: Add blank line after callout title to separate title from content
   // This ensures the content becomes a separate paragraph in the React tree
   // Pattern: > [!type] Title\n> Content -> > [!type] Title\n>\n> Content
   processed = processed.replace(

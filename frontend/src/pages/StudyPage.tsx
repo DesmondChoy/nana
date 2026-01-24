@@ -72,6 +72,9 @@ export default function StudyPage() {
   // Emphasis integration state
   const [isIntegratingEmphasis, setIsIntegratingEmphasis] = useState(false);
 
+  // Edit mode state (controlled at page level for keyboard shortcut)
+  const [isEditMode, setIsEditMode] = useState(false);
+
   // Resizable panes for desktop layout
   const {
     leftWidthPercent,
@@ -266,6 +269,13 @@ export default function StudyPage() {
         return;
       }
 
+      // Handle Cmd+E / Ctrl+E for edit mode toggle (works even in input fields)
+      if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
+        event.preventDefault();
+        setIsEditMode((prev) => !prev);
+        return;
+      }
+
       // Ignore other keys if user is typing in an input field
       if (
         event.target instanceof HTMLInputElement ||
@@ -295,10 +305,11 @@ export default function StudyPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentPage, handlePageChange, openSearch]);
 
-  // Reset notes scroll position when page changes
+  // Reset notes scroll position and edit mode when page changes
   useEffect(() => {
     desktopNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
     mobileNotesScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    setIsEditMode(false);
   }, [currentPage]);
 
   // Clear search highlight after 5 seconds
@@ -580,6 +591,8 @@ export default function StudyPage() {
               onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
               onIntegrateEmphasis={handleIntegrateEmphasis}
               isIntegratingEmphasis={isIntegratingEmphasis}
+              isEditMode={isEditMode}
+              onToggleEditMode={() => setIsEditMode((prev) => !prev)}
             />
           </div>
         </div>
@@ -624,6 +637,8 @@ export default function StudyPage() {
                   onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
                   onIntegrateEmphasis={handleIntegrateEmphasis}
                   isIntegratingEmphasis={isIntegratingEmphasis}
+                  isEditMode={isEditMode}
+                  onToggleEditMode={() => setIsEditMode((prev) => !prev)}
                 />
               </div>
             )}
