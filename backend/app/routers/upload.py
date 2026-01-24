@@ -6,18 +6,20 @@ Uses inline upload (no Files API) for simplicity.
 """
 
 import hashlib
+import json
 import logging
 import time
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from google import genai
 from google.genai import types
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.config import Settings, get_gemini_client, get_settings
 from app.debug import DebugLogger
-from app.schemas import PageContent
+from app.schemas import DocumentOverview, PageContent, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,7 @@ class ParsedPDF(BaseModel):
     pages: list[PageContent]
     session_id: str  # Unique ID for this upload session (used for debug log grouping)
     content_hash: str  # SHA-256 hash of PDF bytes (first 16 hex chars) for import matching
+    overview: DocumentOverview | None = None  # Optional LLM-generated document overview
 
 
 EXTRACTION_PROMPT = """Analyze this PDF document and extract the content from each page.
@@ -78,9 +81,81 @@ For each page, provide:
 Extract ALL pages. Preserve paragraph structure. Include all text, headings, captions, and footnotes."""
 
 
+def _load_overview_prompt() -> str:
+    """Load the document overview prompt template."""
+    prompt_path = Path(__file__).parent.parent.parent / "prompts" / "document_overview.md"
+    return prompt_path.read_text()
+
+
+async def generate_document_overview(
+    pages: list[PageContent],
+    user_profile: UserProfile | None,
+    client: genai.Client,
+    settings: Settings,
+    session_id: str,
+    debug_logger: DebugLogger,
+) -> DocumentOverview | None:
+    """Generate a document overview using extracted page text.
+
+    Returns None if user_profile is not provided (overview requires profile for adaptation).
+    """
+    if not user_profile:
+        return None
+
+    # Combine all page text for the overview
+    document_text = "\n\n".join(
+        f"--- Page {page.page_number} ---\n{page.text}" for page in pages
+    )
+
+    # Load and format the prompt with full user profile
+    prompt_template = _load_overview_prompt()
+    prompt = prompt_template.format(
+        prior_expertise=user_profile.prior_expertise,
+        math_comfort=user_profile.math_comfort,
+        detail_level=user_profile.detail_level,
+        primary_goal=user_profile.primary_goal,
+        additional_context=user_profile.additional_context or "None provided",
+        document_text=document_text,
+    )
+
+    start_time = time.time()
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=DocumentOverview,
+            ),
+        )
+        debug_logger.log_interaction(
+            name="document_overview",
+            prompt=["Generate document overview", prompt[:500] + "..."],  # Truncate for logging
+            response=response,
+            start_time=start_time,
+            end_time=time.time(),
+            session_id=session_id,
+        )
+        return response.parsed
+    except Exception as e:
+        debug_logger.log_interaction(
+            name="document_overview",
+            prompt="Generate document overview",
+            response=None,
+            start_time=start_time,
+            end_time=time.time(),
+            error=str(e),
+            session_id=session_id,
+        )
+        logger.warning(f"[upload] Overview generation failed: {e}")
+        # Don't fail the upload if overview fails - it's optional
+        return None
+
+
 @router.post("/upload", response_model=ParsedPDF)
 async def upload_and_parse_pdf(
     file: UploadFile = File(...),
+    user_profile: str | None = Form(None),  # JSON string of UserProfile
     settings: Settings = Depends(get_settings),
     client: genai.Client = Depends(get_gemini_client),
 ) -> ParsedPDF:
@@ -105,6 +180,16 @@ async def upload_and_parse_pdf(
             status_code=400,
             detail="PDF exceeds 50MB limit. Please upload a smaller file.",
         )
+
+    # Parse user profile if provided
+    parsed_profile: UserProfile | None = None
+    if user_profile:
+        try:
+            profile_data = json.loads(user_profile)
+            parsed_profile = UserProfile(**profile_data)
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.warning(f"[upload] Invalid user_profile JSON: {e}")
+            # Continue without profile - overview will be skipped
 
     # Generate a unique session ID for this upload (used to group all related logs)
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -178,10 +263,21 @@ async def upload_and_parse_pdf(
             detail=f"Failed to parse Gemini response: {e}",
         )
 
+    # Generate document overview if user profile is provided
+    overview = await generate_document_overview(
+        pages=pages,
+        user_profile=parsed_profile,
+        client=client,
+        settings=settings,
+        session_id=session_id,
+        debug_logger=debug_logger,
+    )
+
     return ParsedPDF(
         original_filename=file.filename,
         total_pages=len(pages),
         pages=pages,
         session_id=session_id,
         content_hash=content_hash,
+        overview=overview,
     )

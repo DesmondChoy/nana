@@ -88,3 +88,24 @@ class IntegrateEmphasisRequest(BaseModel):
 
 
 # Response uses existing NotesResponse model
+
+
+# --- Document Overview API Models ---
+
+
+class DocumentOverview(BaseModel):
+    """LLM-generated document overview visualization.
+
+    The content is Markdown that can include ASCII diagrams, tables,
+    concept maps, outlines, or timelines depending on document type.
+    """
+
+    content: str = Field(..., description="Markdown visualization of document structure")
+    visualization_type: str = Field(
+        ...,
+        description="Type of visualization used: ascii_diagram, table, concept_map, outline, timeline",
+    )
+    document_type: str = Field(
+        ...,
+        description="Detected document type: academic_paper, presentation, textbook, manual, report, other",
+    )

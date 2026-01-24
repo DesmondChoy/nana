@@ -3,6 +3,7 @@ import { usePDFStore, useUserStore } from '../stores';
 import { useSearchStore } from '../stores/searchStore';
 import PDFViewer from '../components/PDFViewer';
 import NotesPanel from '../components/NotesPanel';
+import OverviewPanel from '../components/OverviewPanel';
 import GenerationProgress from '../components/GenerationProgress';
 import ThemeToggle from '../components/ThemeToggle';
 import { SearchBar } from '../components/SearchBar';
@@ -219,13 +220,19 @@ export default function StudyPage() {
     };
   }, [parsedPDF, profile, setGenerationProgress, cacheNotes, markPageFailed]);
 
+  // Get cached overview (may exist from previous upload or persistence)
+  const cachedOverview = usePDFStore((state) => state.cachedOverview);
+  const hasOverview = !!(parsedPDF?.overview || cachedOverview);
+
   const handlePageChange = useCallback(
     (page: number) => {
-      if (totalPages > 0 && page >= 1 && page <= totalPages) {
+      // Allow page 0 (overview) if overview exists, otherwise start at 1
+      const minPage = hasOverview ? 0 : 1;
+      if (totalPages > 0 && page >= minPage && page <= totalPages) {
         setCurrentPage(page);
       }
     },
-    [totalPages, setCurrentPage]
+    [totalPages, setCurrentPage, hasOverview]
   );
 
   // Retry failed page generation
@@ -293,7 +300,11 @@ export default function StudyPage() {
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        handlePageChange(currentPage - 1);
+        // Allow going to page 0 (overview) from page 1 if overview exists
+        const minPage = hasOverview ? 0 : 1;
+        if (currentPage > minPage) {
+          handlePageChange(currentPage - 1);
+        }
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
         handlePageChange(currentPage + 1);
@@ -313,7 +324,7 @@ export default function StudyPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, handlePageChange, openSearch]);
+  }, [currentPage, handlePageChange, openSearch, hasOverview]);
 
   // Reset notes scroll position and edit mode when page changes
   useEffect(() => {
@@ -577,65 +588,83 @@ export default function StudyPage() {
           ref={resizableContainerRef}
           className={`hidden md:flex flex-1 ${isDragging ? 'select-none' : ''}`}
         >
-          {/* Left Pane - PDF Viewer */}
-          <div
-            className="bg-gray-200 dark:bg-gray-950 overflow-hidden"
-            style={{ width: `${leftWidthPercent}%` }}
-          >
-            <PDFViewer
-              pdfUrl={pdfFileUrl}
-              totalPages={totalPages}
-              currentPage={currentPage}
-              onPageChange={handlePageChange}
-              highlightTerm={pdfHighlightTerm}
+          {currentPage === 0 ? (
+            /* Full-width Overview Panel when on page 0 */
+            <OverviewPanel
+              overview={parsedPDF?.overview ?? cachedOverview}
+              isLoading={uploadState.isUploading}
             />
-          </div>
+          ) : (
+            /* Normal dual-pane layout for pages 1+ */
+            <>
+              {/* Left Pane - PDF Viewer */}
+              <div
+                className="bg-gray-200 dark:bg-gray-950 overflow-hidden"
+                style={{ width: `${leftWidthPercent}%` }}
+              >
+                <PDFViewer
+                  pdfUrl={pdfFileUrl}
+                  totalPages={totalPages}
+                  currentPage={currentPage}
+                  onPageChange={handlePageChange}
+                  highlightTerm={pdfHighlightTerm}
+                  hasOverview={hasOverview}
+                />
+              </div>
 
-          {/* Resizable Divider */}
-          <ResizeDivider
-            onMouseDown={handleDividerMouseDown}
-            onDoubleClick={handleDividerDoubleClick}
-            isDragging={isDragging}
-          />
+              {/* Resizable Divider */}
+              <ResizeDivider
+                onMouseDown={handleDividerMouseDown}
+                onDoubleClick={handleDividerDoubleClick}
+                isDragging={isDragging}
+              />
 
-          {/* Right Pane - Notes */}
-          <div ref={desktopNotesScrollRef} className="flex-1 bg-white dark:bg-gray-800 overflow-auto">
-            <NotesPanel
-              pageNumber={currentPage}
-              notes={currentNotes?.notes ?? null}
-              isGenerating={generationProgress.isGenerating && !currentNotes}
-              hasFailed={failedPages.has(currentPage)}
-              onRetry={() => handleRetryPage(currentPage)}
-              expansions={currentExpansions}
-              onAddExpansion={(selectedText, response) =>
-                addExpansion(currentPage, selectedText, response)
-              }
-              onRemoveExpansion={(expansionId) =>
-                removeExpansion(currentPage, expansionId)
-              }
-              onUpdateExpansion={(expansionId, selectedText, content) =>
-                updateExpansion(currentPage, expansionId, selectedText, content)
-              }
-              pageContent={currentPageContent}
-              userProfile={profile}
-              sessionId={parsedPDF?.session_id}
-              onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
-              highlightTerm={notesHighlightTerm}
-              emphasisDraft={emphasisDrafts[currentPage] ?? ''}
-              onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
-              onIntegrateEmphasis={handleIntegrateEmphasis}
-              isIntegratingEmphasis={isIntegratingEmphasis}
-              isEditMode={isEditMode}
-              onToggleEditMode={() => setIsEditMode((prev) => !prev)}
-            />
-          </div>
+              {/* Right Pane - Notes */}
+              <div ref={desktopNotesScrollRef} className="flex-1 bg-white dark:bg-gray-800 overflow-auto">
+                <NotesPanel
+                  pageNumber={currentPage}
+                  notes={currentNotes?.notes ?? null}
+                  isGenerating={generationProgress.isGenerating && !currentNotes}
+                  hasFailed={failedPages.has(currentPage)}
+                  onRetry={() => handleRetryPage(currentPage)}
+                  expansions={currentExpansions}
+                  onAddExpansion={(selectedText, response) =>
+                    addExpansion(currentPage, selectedText, response)
+                  }
+                  onRemoveExpansion={(expansionId) =>
+                    removeExpansion(currentPage, expansionId)
+                  }
+                  onUpdateExpansion={(expansionId, selectedText, content) =>
+                    updateExpansion(currentPage, expansionId, selectedText, content)
+                  }
+                  pageContent={currentPageContent}
+                  userProfile={profile}
+                  sessionId={parsedPDF?.session_id}
+                  onUpdateNotes={(markdown) => updateNotesMarkdown(currentPage, markdown)}
+                  highlightTerm={notesHighlightTerm}
+                  emphasisDraft={emphasisDrafts[currentPage] ?? ''}
+                  onEmphasisDraftChange={(draft) => setEmphasisDraft(currentPage, draft)}
+                  onIntegrateEmphasis={handleIntegrateEmphasis}
+                  isIntegratingEmphasis={isIntegratingEmphasis}
+                  isEditMode={isEditMode}
+                  onToggleEditMode={() => setIsEditMode((prev) => !prev)}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Mobile Layout - Tab-based */}
         <div className="md:hidden flex-1 flex flex-col">
           {/* Content area */}
           <div className="flex-1 overflow-hidden">
-            {mobileActiveTab === 'pdf' ? (
+            {currentPage === 0 ? (
+              /* Full-screen Overview Panel on mobile */
+              <OverviewPanel
+                overview={parsedPDF?.overview ?? cachedOverview}
+                isLoading={uploadState.isUploading}
+              />
+            ) : mobileActiveTab === 'pdf' ? (
               <div className="h-full bg-gray-200 dark:bg-gray-950">
                 <PDFViewer
                   pdfUrl={pdfFileUrl}
@@ -643,6 +672,7 @@ export default function StudyPage() {
                   currentPage={currentPage}
                   onPageChange={handlePageChange}
                   highlightTerm={pdfHighlightTerm}
+                  hasOverview={hasOverview}
                 />
               </div>
             ) : (
@@ -679,35 +709,37 @@ export default function StudyPage() {
             )}
           </div>
 
-          {/* Mobile Tab Bar */}
-          <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex">
-            <button
-              onClick={() => setMobileActiveTab('pdf')}
-              className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
-                mobileActiveTab === 'pdf'
-                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              PDF
-            </button>
-            <button
-              onClick={() => setMobileActiveTab('notes')}
-              className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
-                mobileActiveTab === 'notes'
-                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Notes
-            </button>
-          </div>
+          {/* Mobile Tab Bar - hidden when on overview page */}
+          {currentPage !== 0 && (
+            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex">
+              <button
+                onClick={() => setMobileActiveTab('pdf')}
+                className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                  mobileActiveTab === 'pdf'
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                PDF
+              </button>
+              <button
+                onClick={() => setMobileActiveTab('notes')}
+                className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                  mobileActiveTab === 'notes'
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Notes
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
@@ -715,7 +747,7 @@ export default function StudyPage() {
       <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-center gap-4">
         <button
           onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage <= 1}
+          disabled={currentPage <= (hasOverview ? 0 : 1)}
           className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
                      text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700
                      disabled:opacity-50 disabled:cursor-not-allowed
@@ -729,7 +761,7 @@ export default function StudyPage() {
         </button>
 
         <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[100px] text-center">
-          Page {currentPage} of {totalPages}
+          {currentPage === 0 ? 'Overview' : `Page ${currentPage} of ${totalPages}`}
         </span>
 
         <button

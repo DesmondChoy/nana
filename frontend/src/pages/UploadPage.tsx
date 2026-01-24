@@ -350,13 +350,14 @@ export default function UploadPage() {
 
   const { toast } = useToast();
 
-  const handleUpload = useCallback(async (file: File) => {
+  const handleUpload = useCallback(async (file: File, profile: UserProfile) => {
     // Create blob URL before starting upload
     const fileUrl = URL.createObjectURL(file);
     startUpload(fileUrl, file.size, file.lastModified);
 
     try {
-      const parsedData = await uploadPDF(file);
+      // Pass user profile for overview generation
+      const parsedData = await uploadPDF(file, profile);
       uploadSuccess(parsedData);
     } catch (error) {
       uploadFailed(error instanceof Error ? error.message : 'Upload failed. Please try again.');
@@ -511,8 +512,8 @@ export default function UploadPage() {
 
       resumeFromCache(fileUrl);
     } else {
-      // Normal flow: call the API
-      handleUpload(selectedFile);
+      // Normal flow: call the API with profile for overview generation
+      handleUpload(selectedFile, profile);
     }
   }, [
     formData,

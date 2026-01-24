@@ -29,9 +29,14 @@ function getHeaders(contentType?: string): HeadersInit {
 }
 
 // Upload and parse PDF
-export async function uploadPDF(file: File): Promise<ParsedPDF> {
+export async function uploadPDF(file: File, userProfile?: UserProfile): Promise<ParsedPDF> {
   const formData = new FormData();
   formData.append('file', file);
+
+  // Include user profile for overview generation
+  if (userProfile) {
+    formData.append('user_profile', JSON.stringify(userProfile));
+  }
 
   // Note: Don't set Content-Type for FormData - browser sets it with boundary
   const apiKey = useApiKeyStore.getState().apiKey;

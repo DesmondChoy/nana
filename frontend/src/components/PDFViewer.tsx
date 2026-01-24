@@ -12,6 +12,7 @@ interface PDFViewerProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   highlightTerm?: string | null;
+  hasOverview?: boolean; // Whether document overview exists (for page 0 button)
 }
 
 export default function PDFViewer({
@@ -20,6 +21,7 @@ export default function PDFViewer({
   currentPage,
   onPageChange,
   highlightTerm,
+  hasOverview = false,
 }: PDFViewerProps) {
   const [pageWidth, setPageWidth] = useState<number>(600);
   const [isLoading, setIsLoading] = useState(true);
@@ -202,6 +204,25 @@ export default function PDFViewer({
         ref={sidebarRef}
         className="hidden md:block w-20 bg-gray-200 dark:bg-gray-800 p-2 overflow-y-auto flex-shrink-0 border-r border-gray-300 dark:border-gray-700"
       >
+        {/* Overview button - shown only if overview exists */}
+        {hasOverview && (
+          <button
+            onClick={() => onPageChange(0)}
+            className={`w-full mb-3 p-2 text-xs font-medium rounded-md transition-all duration-150 flex items-center justify-center gap-1 ${
+              currentPage === 0
+                ? 'bg-purple-500 text-white ring-2 ring-purple-400 ring-offset-1 dark:ring-offset-gray-800 scale-105'
+                : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/40'
+            }`}
+            title="Document Overview"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            <span>Overview</span>
+          </button>
+        )}
+
+        {/* Page thumbnails */}
         {Array.from({ length: totalPages }, (_, idx) => (
           <button
             key={idx + 1}

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import type { ParsedPDF, PageNotes, NotesResponse, Expansion, InlineCommandResponse } from '../types';
+import type { ParsedPDF, PageNotes, NotesResponse, Expansion, InlineCommandResponse, DocumentOverview } from '../types';
 
 // Custom storage with quota error handling
 const createSafeStorage = (): StateStorage => ({
@@ -60,6 +60,7 @@ interface PDFState {
   cachedFileModified: number | null; // File.lastModified for cache validation (persisted)
   cachedTotalPages: number | null; // Total pages for completeness check (persisted)
   cachedContentHash: string | null; // SHA-256 hash of PDF bytes for import matching (persisted)
+  cachedOverview: DocumentOverview | null; // LLM-generated document overview (persisted)
 
   // Failed pages (generation attempted but failed)
   failedPages: Set<number>;
@@ -152,6 +153,7 @@ export const usePDFStore = create<PDFState>()(
       cachedFileModified: null,
       cachedTotalPages: null,
       cachedContentHash: null,
+      cachedOverview: null,
       failedPages: new Set<number>(),
       generationProgress: {
         isGenerating: false,
@@ -179,18 +181,20 @@ export const usePDFStore = create<PDFState>()(
         // Keep cache if re-uploading the same file, otherwise clear it
         const isSameFile = state.cachedFilename === pdf.original_filename;
         const preservedCache = isSameFile ? state.notesCache : {};
-        const preservedPage = isSameFile ? state.currentPage : 1;
+        // Navigate to overview (page 0) if available, otherwise page 1
+        const startPage = pdf.overview ? 0 : (isSameFile ? state.currentPage : 1);
 
         set({
           parsedPDF: pdf,
           pdfFileUrl: fileUrl,
-          currentPage: preservedPage,
+          currentPage: startPage,
           notesCache: preservedCache,
           cachedFilename: pdf.original_filename,
           cachedFileSize: fileSize,
           cachedFileModified: fileModified,
           cachedTotalPages: pdf.total_pages,
           cachedContentHash: pdf.content_hash,
+          cachedOverview: pdf.overview ?? null,
           failedPages: isSameFile ? state.failedPages : new Set<number>(),
           uploadState: {
             isUploading: false,
@@ -341,6 +345,7 @@ export const usePDFStore = create<PDFState>()(
         cachedFileModified: null,
         cachedTotalPages: null,
         cachedContentHash: null,
+        cachedOverview: null,
         failedPages: new Set<number>(),
       }),
 
@@ -540,6 +545,7 @@ export const usePDFStore = create<PDFState>()(
         cachedFileModified: state.cachedFileModified,
         cachedTotalPages: state.cachedTotalPages,
         cachedContentHash: state.cachedContentHash,
+        cachedOverview: state.cachedOverview,
         currentPage: state.currentPage,
       }),
       // Migrate old format cache on rehydration
