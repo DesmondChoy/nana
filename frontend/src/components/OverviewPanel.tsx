@@ -74,14 +74,14 @@ export default function OverviewPanel({ overview, isLoading }: OverviewPanelProp
     DOCUMENT_TYPE_LABELS[overview.document_type] || overview.document_type;
 
   return (
-    <div className="h-full overflow-auto bg-white dark:bg-gray-800">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Header with badges */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+    <div className="h-full w-full overflow-auto bg-white dark:bg-gray-800">
+      <div className="max-w-4xl mx-auto px-6 py-8 md:py-12">
+        {/* Header with badges - centered for landing page feel */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
             Document Overview
           </h1>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200">
               {documentTypeLabel}
             </span>
