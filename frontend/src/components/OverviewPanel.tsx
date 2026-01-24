@@ -8,6 +8,7 @@ interface OverviewPanelProps {
 
 // Friendly display names for visualization types
 const VISUALIZATION_LABELS: Record<string, string> = {
+  executive_summary: 'Summary',
   ascii_diagram: 'Diagram',
   table: 'Table',
   concept_map: 'Concept Map',

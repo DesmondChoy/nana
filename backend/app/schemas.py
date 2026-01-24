@@ -103,7 +103,7 @@ class DocumentOverview(BaseModel):
     content: str = Field(..., description="Markdown visualization of document structure")
     visualization_type: str = Field(
         ...,
-        description="Type of visualization used: ascii_diagram, table, concept_map, outline, timeline",
+        description="Type of visualization used: executive_summary, table, concept_map, outline, timeline",
     )
     document_type: str = Field(
         ...,
