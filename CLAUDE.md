@@ -97,6 +97,7 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 - All LLM interactions logged to `debug/` folder (gitignored)
 - POC project - avoid over-engineering, document simpler alternatives
 - **UI/UX changes require Playwright testing** - After implementing or modifying UI/UX features, run the Playwright MCP testing workflow defined in `.claude/skills/playwright-testing.md`
+- **Run quality check before committing** - Before any git commit or beads update, run `/quality` to review all changes with "fresh eyes" and fix any issues found
 
 ## Landing the Plane (Session Completion)
 
@@ -105,21 +106,23 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+2. **Run quality check** - MANDATORY before any commits: Run `/quality` to review all code changes with "fresh eyes" and fix any issues found
+3. **Run quality gates** (if code changed) - Tests, linters, builds
+4. **Update issue status** - Close finished work, update in-progress items
+5. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
    bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+6. **Clean up** - Clear stashes, prune remote branches
+7. **Verify** - All changes committed AND pushed
+8. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+- NEVER skip the quality check (`/quality`) - it catches bugs before they're committed
