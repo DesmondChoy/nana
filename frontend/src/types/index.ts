@@ -88,3 +88,19 @@ export interface PageNotes {
   generated_at: string;
   expansions?: Expansion[]; // Inline command expansions for this page
 }
+
+// Upload progress SSE types
+export type UploadStep =
+  | 'validating'
+  | 'extracting'
+  | 'parsing'
+  | 'generating_overview'
+  | 'complete'
+  | 'error';
+
+export interface UploadProgressEvent {
+  step: UploadStep;
+  message: string;
+  progress_percent: number;
+  data?: ParsedPDF; // Included on 'complete' step
+}

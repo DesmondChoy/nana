@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useUserStore, usePDFStore } from '../stores';
 import { useApiKeyStore } from '../stores/apiKeyStore';
-import { uploadPDF } from '../api/client';
+import { uploadPDFWithProgress } from '../api/client';
 import StorageWarning from '../components/StorageWarning';
 import ThemeToggle from '../components/ThemeToggle';
 import ApiKeyInput from '../components/ApiKeyInput';
@@ -314,6 +314,7 @@ export default function UploadPage() {
   const setProfile = useUserStore((state) => state.setProfile);
   const existingProfile = useUserStore((state) => state.profile);
   const startUpload = usePDFStore((state) => state.startUpload);
+  const updateUploadProgress = usePDFStore((state) => state.updateUploadProgress);
   const uploadSuccess = usePDFStore((state) => state.uploadSuccess);
   const uploadFailed = usePDFStore((state) => state.uploadFailed);
   const resumeFromCache = usePDFStore((state) => state.resumeFromCache);
@@ -350,19 +351,28 @@ export default function UploadPage() {
 
   const { toast } = useToast();
 
-  const handleUpload = useCallback(async (file: File, profile: UserProfile) => {
+  const handleUpload = useCallback((file: File, profile: UserProfile) => {
     // Create blob URL before starting upload
     const fileUrl = URL.createObjectURL(file);
     startUpload(fileUrl, file.size, file.lastModified);
 
-    try {
-      // Pass user profile for overview generation
-      const parsedData = await uploadPDF(file, profile);
-      uploadSuccess(parsedData);
-    } catch (error) {
-      uploadFailed(error instanceof Error ? error.message : 'Upload failed. Please try again.');
-    }
-  }, [startUpload, uploadSuccess, uploadFailed]);
+    // Use SSE streaming upload with progress callbacks
+    uploadPDFWithProgress(
+      file,
+      profile,
+      {
+        onProgress: (event) => {
+          updateUploadProgress(event.step, event.message, event.progress_percent);
+        },
+        onComplete: (data) => {
+          uploadSuccess(data);
+        },
+        onError: (error) => {
+          uploadFailed(error);
+        },
+      }
+    );
+  }, [startUpload, updateUploadProgress, uploadSuccess, uploadFailed]);
 
   const isProfileComplete =
     formData.prior_expertise &&

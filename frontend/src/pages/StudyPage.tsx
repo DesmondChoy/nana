@@ -457,15 +457,56 @@ export default function StudyPage() {
               </button>
             </>
           ) : (
-            // Loading state
+            // Loading state with progress
             <>
               <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 Processing Your PDF
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Extracting text and structure from your document...
+
+              {/* Progress bar */}
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-3 overflow-hidden">
+                <div
+                  className="bg-blue-600 dark:bg-blue-500 h-2.5 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${uploadState.progressPercent}%` }}
+                />
+              </div>
+
+              {/* Progress percentage */}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                {uploadState.progressPercent}%
               </p>
+
+              {/* Step message */}
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {uploadState.stepMessage || 'Preparing upload...'}
+              </p>
+
+              {/* Step indicators */}
+              <div className="flex justify-center items-center gap-2">
+                {(['validating', 'extracting', 'parsing', 'generating_overview'] as const).map((step, index) => {
+                  const steps = ['validating', 'extracting', 'parsing', 'generating_overview'];
+                  const currentStepIndex = uploadState.currentStep
+                    ? steps.indexOf(uploadState.currentStep)
+                    : -1;
+                  const isCompleted = currentStepIndex > index;
+                  const isActive = uploadState.currentStep === step;
+
+                  return (
+                    <div
+                      key={step}
+                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                        isCompleted
+                          ? 'bg-blue-600 dark:bg-blue-500'
+                          : isActive
+                          ? 'bg-blue-600 dark:bg-blue-500 ring-4 ring-blue-200 dark:ring-blue-900'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                      title={step.replace('_', ' ')}
+                    />
+                  );
+                })}
+              </div>
             </>
           )}
         </div>

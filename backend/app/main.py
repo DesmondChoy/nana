@@ -8,8 +8,7 @@ and sets up middleware. Run with: uvicorn app.main:app --reload
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import upload, notes, inline_commands, debug, emphasis
-
+from app.routers import debug, emphasis, inline_commands, notes, upload, upload_stream
 
 app = FastAPI(
     title="NANA Study Assistant API",
@@ -32,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(upload.router, prefix="/api", tags=["upload"])
+app.include_router(upload_stream.router, prefix="/api", tags=["upload-stream"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
 app.include_router(inline_commands.router, prefix="/api", tags=["inline-commands"])
 app.include_router(emphasis.router, prefix="/api", tags=["emphasis"])

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import type { ParsedPDF, PageNotes, NotesResponse, Expansion, InlineCommandResponse, DocumentOverview } from '../types';
+import type { ParsedPDF, PageNotes, NotesResponse, Expansion, InlineCommandResponse, DocumentOverview, UploadStep } from '../types';
 
 // Custom storage with quota error handling
 const createSafeStorage = (): StateStorage => ({
@@ -49,6 +49,10 @@ interface PDFState {
     pendingFileUrl: string | null; // Blob URL created before upload starts
     pendingFileSize: number | null; // File.size for cache validation
     pendingFileModified: number | null; // File.lastModified for cache validation
+    // Progress tracking for SSE streaming
+    currentStep: UploadStep | null;
+    stepMessage: string | null;
+    progressPercent: number;
   };
 
   // Cached notes per page (keyed by page number)
@@ -77,6 +81,7 @@ interface PDFState {
 
   // Actions
   startUpload: (fileUrl: string, fileSize: number, fileModified: number) => void;
+  updateUploadProgress: (step: UploadStep, message: string, percent: number) => void;
   uploadSuccess: (pdf: ParsedPDF) => void;
   uploadFailed: (error: string) => void;
   clearUploadError: () => void;
@@ -145,6 +150,9 @@ export const usePDFStore = create<PDFState>()(
         pendingFileUrl: null,
         pendingFileSize: null,
         pendingFileModified: null,
+        currentStep: null,
+        stepMessage: null,
+        progressPercent: 0,
       },
       notesCache: {},
       emphasisDrafts: {},
@@ -170,8 +178,21 @@ export const usePDFStore = create<PDFState>()(
             pendingFileUrl: fileUrl,
             pendingFileSize: fileSize,
             pendingFileModified: fileModified,
+            currentStep: null,
+            stepMessage: null,
+            progressPercent: 0,
           },
         }),
+
+      updateUploadProgress: (step, message, percent) =>
+        set((state) => ({
+          uploadState: {
+            ...state.uploadState,
+            currentStep: step,
+            stepMessage: message,
+            progressPercent: percent,
+          },
+        })),
 
       uploadSuccess: (pdf) => {
         const state = get();
@@ -202,6 +223,9 @@ export const usePDFStore = create<PDFState>()(
             pendingFileUrl: null,
             pendingFileSize: null,
             pendingFileModified: null,
+            currentStep: null,
+            stepMessage: null,
+            progressPercent: 0,
           },
           generationProgress: {
             isGenerating: false,
@@ -224,6 +248,9 @@ export const usePDFStore = create<PDFState>()(
               pendingFileUrl: null,
               pendingFileSize: null,
               pendingFileModified: null,
+              currentStep: 'error',
+              stepMessage: error,
+              progressPercent: 0,
             },
           };
         }),
@@ -289,6 +316,9 @@ export const usePDFStore = create<PDFState>()(
             pendingFileUrl: null,
             pendingFileSize: null,
             pendingFileModified: null,
+            currentStep: null,
+            stepMessage: null,
+            progressPercent: 0,
           },
           notesCache: {},
           emphasisDrafts: {},
@@ -512,6 +542,9 @@ export const usePDFStore = create<PDFState>()(
             pendingFileUrl: null,
             pendingFileSize: null,
             pendingFileModified: null,
+            currentStep: null,
+            stepMessage: null,
+            progressPercent: 0,
           },
           generationProgress: {
             isGenerating: false,

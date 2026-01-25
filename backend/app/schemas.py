@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 # --- Shared Models ---
@@ -19,7 +19,7 @@ class UserProfile(BaseModel):
     math_comfort: str = Field(..., description="Comfort level with math (e.g., 'No equations', 'Equation-heavy')")
     detail_level: str = Field(..., description="Desired verbosity (e.g., 'Concise', 'Comprehensive')")
     primary_goal: str = Field(..., description="Learning goal (e.g., 'Exam prep', 'Deep understanding')")
-    additional_context: Optional[str] = Field(None, description="Free-text context about the user")
+    additional_context: str | None = Field(None, description="Free-text context about the user")
 
 class TopicMastery(BaseModel):
     """Tracking score for a specific topic."""
@@ -32,12 +32,12 @@ class TopicMastery(BaseModel):
 class NotesRequest(BaseModel):
     """Request payload for generating notes for a specific page."""
     current_page: PageContent
-    previous_page: Optional[PageContent] = Field(None, description="Previous page (N-1) for continuity context")
+    previous_page: PageContent | None = Field(None, description="Previous page (N-1) for continuity context")
     user_profile: UserProfile
-    topic_mastery: Dict[str, TopicMastery] = Field(default_factory=dict, description="Map of topic IDs to mastery scores")
-    previous_notes_context: Optional[str] = Field(None, description="Summary or text of previous notes for continuity")
-    document_name: Optional[str] = Field(None, description="Name of the document/PDF being processed (for logging)")
-    session_id: Optional[str] = Field(None, description="Session ID from upload (for grouping debug logs)")
+    topic_mastery: dict[str, TopicMastery] = Field(default_factory=dict, description="Map of topic IDs to mastery scores")
+    previous_notes_context: str | None = Field(None, description="Summary or text of previous notes for continuity")
+    document_name: str | None = Field(None, description="Name of the document/PDF being processed (for logging)")
+    session_id: str | None = Field(None, description="Session ID from upload (for grouping debug logs)")
 
 class NotesResponse(BaseModel):
     """Markdown notes with metadata for tracking.
@@ -46,8 +46,8 @@ class NotesResponse(BaseModel):
     plus structured metadata for topic mastery tracking.
     """
     markdown: str = Field(..., description="Full markdown content of the notes with Obsidian-style callouts")
-    topic_labels: List[str] = Field(default_factory=list, description="Topics covered for mastery tracking (lowercase, hyphenated)")
-    page_references: List[int] = Field(default_factory=list, description="Page numbers referenced in these notes")
+    topic_labels: list[str] = Field(default_factory=list, description="Topics covered for mastery tracking (lowercase, hyphenated)")
+    page_references: list[int] = Field(default_factory=list, description="Page numbers referenced in these notes")
 
 
 # --- Inline Command API Models ---
@@ -66,7 +66,7 @@ class InlineCommandRequest(BaseModel):
     page_number: int = Field(..., description="Page number where the selection occurred")
     page_text: str = Field(..., description="Full text of the page for context")
     user_profile: UserProfile = Field(..., description="User profile for personalization")
-    session_id: Optional[str] = Field(None, description="Session ID for debug log grouping")
+    session_id: str | None = Field(None, description="Session ID for debug log grouping")
 
 
 class InlineCommandResponse(BaseModel):
@@ -82,9 +82,9 @@ class IntegrateEmphasisRequest(BaseModel):
     page_number: int = Field(..., description="Page number of the notes")
     existing_notes: str = Field(..., description="Current markdown notes content")
     emphasis_content: str = Field(..., description="User's key points to integrate")
-    page_content: Optional[PageContent] = Field(None, description="Page content for context (optional for cached sessions)")
+    page_content: PageContent | None = Field(None, description="Page content for context (optional for cached sessions)")
     user_profile: UserProfile = Field(..., description="User profile for personalization")
-    session_id: Optional[str] = Field(None, description="Session ID for debug log grouping")
+    session_id: str | None = Field(None, description="Session ID for debug log grouping")
 
 
 # Response uses existing NotesResponse model
@@ -109,3 +109,29 @@ class DocumentOverview(BaseModel):
         ...,
         description="Detected document type: academic_paper, presentation, textbook, manual, report, other",
     )
+
+
+# --- Upload Progress SSE Models ---
+
+
+class UploadStep(str, Enum):
+    """Steps in the upload/processing pipeline."""
+
+    VALIDATING = "validating"
+    EXTRACTING = "extracting"
+    PARSING = "parsing"
+    GENERATING_OVERVIEW = "generating_overview"
+    COMPLETE = "complete"
+    ERROR = "error"
+
+
+class UploadProgressEvent(BaseModel):
+    """SSE event for upload progress updates.
+
+    Sent as `data: {json}` in the SSE stream.
+    """
+
+    step: UploadStep = Field(..., description="Current processing step")
+    message: str = Field(..., description="Human-readable progress message")
+    progress_percent: int = Field(..., ge=0, le=100, description="Progress percentage (0-100)")
+    data: dict | None = Field(None, description="Additional data (e.g., ParsedPDF on complete)")

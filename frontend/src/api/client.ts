@@ -6,6 +6,7 @@ import type {
   NotesResponse,
   InlineCommandType,
   InlineCommandResponse,
+  UploadProgressEvent,
 } from '../types';
 import { useApiKeyStore } from '../stores/apiKeyStore';
 
@@ -28,7 +29,152 @@ function getHeaders(contentType?: string): HeadersInit {
   return headers;
 }
 
-// Upload and parse PDF
+// Callbacks for SSE streaming upload
+export interface UploadProgressCallbacks {
+  onProgress: (event: UploadProgressEvent) => void;
+  onComplete: (data: ParsedPDF) => void;
+  onError: (error: string) => void;
+}
+
+/**
+ * Parse SSE stream from a ReadableStream.
+ *
+ * SSE format: each event is "data: {json}\n\n"
+ * The challenge: data arrives in arbitrary chunks that may split across event boundaries.
+ * We buffer incoming data and extract complete events as they arrive.
+ */
+function parseSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  callbacks: UploadProgressCallbacks,
+  signal?: AbortSignal
+): void {
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  async function processStream(): Promise<void> {
+    try {
+      while (true) {
+        // Check if aborted
+        if (signal?.aborted) {
+          reader.cancel();
+          return;
+        }
+
+        const { done, value } = await reader.read();
+
+        if (done) {
+          // Stream ended - process any remaining buffer
+          if (buffer.trim()) {
+            processBufferedEvents();
+          }
+          return;
+        }
+
+        // Decode chunk and add to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete events from buffer
+        processBufferedEvents();
+      }
+    } catch (error) {
+      if (signal?.aborted) return;
+      callbacks.onError(error instanceof Error ? error.message : 'Stream read error');
+    }
+  }
+
+  function processBufferedEvents(): void {
+    // SSE events are separated by double newlines
+    // Split and process complete events, keep incomplete data in buffer
+    const events = buffer.split('\n\n');
+
+    // Last element might be incomplete (no trailing \n\n yet)
+    buffer = events.pop() || '';
+
+    for (const eventText of events) {
+      if (!eventText.trim()) continue;
+
+      // Each line in an event starts with a field name
+      // We only care about "data:" lines
+      const lines = eventText.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const jsonStr = line.slice(6); // Remove "data: " prefix
+          try {
+            const event: UploadProgressEvent = JSON.parse(jsonStr);
+
+            // Route to appropriate callback based on step
+            if (event.step === 'complete' && event.data) {
+              callbacks.onComplete(event.data as ParsedPDF);
+            } else if (event.step === 'error') {
+              callbacks.onError(event.message);
+            } else {
+              callbacks.onProgress(event);
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse SSE event:', parseError);
+          }
+        }
+      }
+    }
+  }
+
+  processStream();
+}
+
+/**
+ * Upload PDF with SSE progress streaming.
+ *
+ * Instead of waiting for the entire response, this streams progress updates
+ * as the server processes the PDF through each step.
+ */
+export async function uploadPDFWithProgress(
+  file: File,
+  userProfile: UserProfile | undefined,
+  callbacks: UploadProgressCallbacks,
+  signal?: AbortSignal
+): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  if (userProfile) {
+    formData.append('user_profile', JSON.stringify(userProfile));
+  }
+
+  const apiKey = useApiKeyStore.getState().apiKey;
+  const headers: HeadersInit = {};
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/upload-stream`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      callbacks.onError(error.detail || 'Failed to upload PDF');
+      return;
+    }
+
+    if (!response.body) {
+      callbacks.onError('No response body');
+      return;
+    }
+
+    // Get the reader and start parsing SSE events
+    const reader = response.body.getReader();
+    parseSSEStream(reader, callbacks, signal);
+  } catch (error) {
+    if (signal?.aborted) return;
+    callbacks.onError(error instanceof Error ? error.message : 'Upload failed');
+  }
+}
+
+// Upload and parse PDF (original non-streaming version)
 export async function uploadPDF(file: File, userProfile?: UserProfile): Promise<ParsedPDF> {
   const formData = new FormData();
   formData.append('file', file);
