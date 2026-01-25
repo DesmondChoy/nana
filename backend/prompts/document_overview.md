@@ -34,9 +34,16 @@ Always produce EXACTLY these 3 sections in this order:
 ### Section 1: Document At-a-Glance
 ```markdown
 > [!info] Document At-a-Glance
-> **Type**: [document type] ([page count] pages)
-> **Topic**: [one-sentence description of main subject]
+> **Big Question**: [Frame the document's central inquiry as a compelling why/how/when question that creates curiosity]
+>
+> **What You'll Learn**: [2-3 concrete capabilities using action verbs: compare, implement, evaluate, explain, distinguish, apply]
 ```
+
+**Rules for Document At-a-Glance:**
+- **Big Question**: Frame the document's core tension or insight as an inquiry. Make it specific to *this* document, not generic. Examples:
+  - ✅ "Why are Vision Transformers replacing CNNs — and when should you still use convolutions?"
+  - ❌ "What is deep learning?" (too generic)
+- **What You'll Learn**: Promise concrete outcomes the learner will achieve. Match complexity to the learner's expertise level from their profile. Use action verbs that imply capability.
 
 ### Section 2: Concept Journey
 
@@ -97,8 +104,9 @@ Identify the document type first, then adjust your Concept Journey approach:
 
 ```markdown
 > [!info] Document At-a-Glance
-> **Type**: Technical presentation (51 pages)
-> **Topic**: How vision transformers process images and efficient fine-tuning techniques
+> **Big Question**: How do Vision Transformers apply self-attention to images — and what makes them outperform CNNs on large-scale tasks?
+>
+> **What You'll Learn**: Understand patch tokenization and positional encoding, compare ViT architectures with CNNs, and apply parameter-efficient fine-tuning techniques like LoRA.
 
 ### Concept Journey
 
