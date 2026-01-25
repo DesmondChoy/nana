@@ -36,13 +36,18 @@ Always produce EXACTLY these 3 sections in this order:
 > [!info] Document At-a-Glance
 > **Big Question**: [Frame the document's central inquiry as a compelling why/how/when question that creates curiosity]
 >
+> **Why It Matters Now**: [1-2 sentences linking to current real-world context AND practical application]
+>
 > **What You'll Learn**: [2-3 concrete capabilities using action verbs: understand, compare, implement, evaluate, explain, apply]
 ```
 
 **Rules for Document At-a-Glance:**
-- **Big Question**: Frame the document's core tension or insight as an inquiry. Make it specific to *this* document, not generic. Examples:
-  - ✅ "Why are Vision Transformers replacing CNNs — and when should you still use convolutions?"
-  - ❌ "What is deep learning?" (too generic)
+- **Big Question**: Frame the document's core tension or insight as an inquiry. Make it specific to *this* document, not generic.
+- **Why It Matters Now**: Ground the topic in current relevance:
+  - **Current context**: What's happening today that makes this relevant? (industry trends, recent events, emerging research)
+  - **Practical application**: How could the learner use this? (career, projects, decisions, conversations)
+  - Adapt tone and specificity to the document type (see Document Type Adaptations)
+  - Keep it grounded—no generic platitudes like "this is increasingly important"
 - **What You'll Learn**: Promise concrete outcomes the learner will achieve. Match complexity to the learner's expertise level from their profile. Use action verbs that imply capability.
 
 ### Section 2: Concept Journey
@@ -88,49 +93,15 @@ Create 4-6 rows maximum. Group pages logically by topic, not by literal headings
 
 ## Document Type Adaptations
 
-Identify the document type first, then adjust your Concept Journey approach:
+Identify the document type first, then adjust your approach:
 
-| Type | Concept Journey Focus |
-|------|----------------------|
-| presentation | Follow the speaker's narrative arc. Key insights often live in diagrams—acknowledge when visual content carries meaning text can't capture. Show how slides build progressively. |
-| academic_paper | Structure around the research question. Show: Problem → Method → Finding → Implication. |
-| textbook | Emphasize prerequisites. Use "requires understanding of X" language. Show systematic concept building. |
-| manual | Focus on lookup structure. Emphasize "when to use" each section rather than linear reading. |
-| report | Lead with conclusions. Show: Finding → Evidence → Recommendation flow. |
-
----
-
-## Example Output
-
-```markdown
-> [!info] Document At-a-Glance
-> **Big Question**: How do Vision Transformers apply self-attention to images — and what makes them outperform CNNs on large-scale tasks?
->
-> **What You'll Learn**: Understand patch tokenization and positional encoding, compare ViT architectures with CNNs, and apply parameter-efficient fine-tuning techniques like LoRA.
-
-### Concept Journey
-
-1. **Self-Attention Mechanism** (pp. 2-10)
-   → establishes how models weigh relationships between all inputs
-
-2. **Image Tokenization** (pp. 11-18)
-   → applies attention to image patches instead of words
-   → enables treating images as sequences
-
-3. **Transfer Learning** (pp. 26-35)
-   → builds on tokenization to adapt pre-trained models
-   → reduces training cost by leveraging existing knowledge
-
-4. **LoRA/Adapters** (pp. 36-42)
-   → extends transfer learning with parameter-efficient methods
-
-| Section | Pages | Key Focus |
-|---------|-------|-----------|
-| Attention Fundamentals | 2-10 | Core mechanism |
-| ViT Architecture | 11-25 | Image-to-sequence |
-| Transfer Learning | 26-35 | Adapters, LoRA |
-| Applications | 36-51 | Detection, segmentation |
-```
+| Type | Concept Journey Focus | Why It Matters Now Focus |
+|------|----------------------|--------------------------|
+| presentation | Follow the speaker's narrative arc. Key insights often live in diagrams—acknowledge when visual content carries meaning text can't capture. Show how slides build progressively. | Industry/company context, market dynamics |
+| academic_paper | Structure around the research question. Show: Problem → Method → Finding → Implication. | Current research landscape, industry adoption, citations/impact |
+| textbook | Emphasize prerequisites. Use "requires understanding of X" language. Show systematic concept building. | Career applications, foundational for advanced topics |
+| manual | Focus on lookup structure. Emphasize "when to use" each section rather than linear reading. | When you'll encounter this, efficiency/safety gains |
+| report | Lead with conclusions. Show: Finding → Evidence → Recommendation flow. | Business impact, decision implications, stakeholder concerns |
 
 ---
 
