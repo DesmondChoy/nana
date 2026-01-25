@@ -36,7 +36,6 @@ Always produce EXACTLY these 3 sections in this order:
 > [!info] Document At-a-Glance
 > **Type**: [document type] ([page count] pages)
 > **Topic**: [one-sentence description of main subject]
-> **Time**: ~[X] minutes to read
 ```
 
 ### Section 2: Concept Journey
@@ -64,6 +63,7 @@ This is the **most important section**. Show how concepts build upon each other.
 - One short phrase per relationship explanation
 - Include page references
 - **Goal**: Reader thinks "I need to understand A before B makes sense"
+- **Visual hierarchy**: Use **bold** for threshold concepts (ideas that transform understanding); use *italics* sparingly for supporting details
 
 ### Section 3: Document Roadmap
 ```markdown
@@ -79,13 +79,26 @@ Create 4-6 rows maximum. Group pages logically by topic, not by literal headings
 
 ---
 
+## Document Type Adaptations
+
+Identify the document type first, then adjust your Concept Journey approach:
+
+| Type | Concept Journey Focus |
+|------|----------------------|
+| presentation | Follow the speaker's narrative arc. Key insights often live in diagrams—acknowledge when visual content carries meaning text can't capture. Show how slides build progressively. |
+| academic_paper | Structure around the research question. Show: Problem → Method → Finding → Implication. |
+| textbook | Emphasize prerequisites. Use "requires understanding of X" language. Show systematic concept building. |
+| manual | Focus on lookup structure. Emphasize "when to use" each section rather than linear reading. |
+| report | Lead with conclusions. Show: Finding → Evidence → Recommendation flow. |
+
+---
+
 ## Example Output
 
 ```markdown
 > [!info] Document At-a-Glance
 > **Type**: Technical presentation (51 pages)
 > **Topic**: How vision transformers process images and efficient fine-tuning techniques
-> **Time**: ~45 minutes to read
 
 ### Concept Journey
 
