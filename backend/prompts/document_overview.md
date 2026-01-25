@@ -36,7 +36,7 @@ Always produce EXACTLY these 3 sections in this order:
 > [!info] Document At-a-Glance
 > **Big Question**: [Frame the document's central inquiry as a compelling why/how/when question that creates curiosity]
 >
-> **What You'll Learn**: [2-3 concrete capabilities using action verbs: compare, implement, evaluate, explain, distinguish, apply]
+> **What You'll Learn**: [2-3 concrete capabilities using action verbs: understand, compare, implement, evaluate, explain, apply]
 ```
 
 **Rules for Document At-a-Glance:**
