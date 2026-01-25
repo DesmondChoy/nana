@@ -19,6 +19,7 @@ NANA uses a BYOK (Bring Your Own Key) model powered by [Gemini 3 Flash](https://
 ## 🛠 Features
 
 * **Smart PDF Processing:** Two-phase pipeline extracts content once, generates notes efficiently.
+* **Document Overview:** Executive summary with concept journey auto-generated as page 0.
 * **LaTeX & Markdown:** KaTeX math rendering with Obsidian-style callouts (note, warning, tip).
 * **Inline Commands:** Select text to elaborate, simplify, or get analogies tailored to your background.
 * **Emphasis Integration:** Add key points from lectures that AI weaves into generated notes.
@@ -99,7 +100,10 @@ NANA uses a two-phase AI pipeline to optimize performance and cost:
 |-----|--------|
 | `←` / `→` | Previous / Next page |
 | `↑` / `↓` | Scroll notes panel |
-| `Cmd+F` | Open text search |
+| `Cmd/Ctrl+E` | Toggle edit mode |
+| `Cmd/Ctrl+F` | Open text search |
+| `?` | Show keyboard shortcuts |
+| `Esc` | Close modal / search |
 
 ## ❓ FAQ
 
