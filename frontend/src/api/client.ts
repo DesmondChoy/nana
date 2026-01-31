@@ -265,7 +265,8 @@ export async function logCacheHits(params: LogCacheHitsParams): Promise<void> {
 }
 
 // Timeout for inline commands (in milliseconds)
-const INLINE_COMMAND_TIMEOUT = 30000;
+// Set slightly higher than backend (60s) to let backend timeout first with better error message
+const INLINE_COMMAND_TIMEOUT = 65000;
 
 // Execute inline command (elaborate, simplify, analogy, diagram)
 export interface ExecuteInlineCommandParams {

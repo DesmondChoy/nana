@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Gemini API - optional from .env (can be provided via header instead)
     google_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
-    gemini_timeout: int = 30000  # Timeout in milliseconds for Gemini API calls (30 seconds)
+    gemini_timeout: int = 60000  # Timeout in milliseconds for Gemini API calls (60 seconds)
 
     # Note: Context for notes generation is handled at the API layer
     # (previous_page passed explicitly in NotesRequest)
