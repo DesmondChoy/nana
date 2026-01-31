@@ -101,28 +101,21 @@ User → UploadPage (profile + PDF) → POST /api/upload → Gemini extracts pag
 
 ## Landing the Plane (Session Completion)
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+**When ending a work session**, remind the user of pending items and **wait for explicit approval** before any git operations.
 
-**MANDATORY WORKFLOW:**
+**SESSION END CHECKLIST** (propose to user, don't auto-execute):
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality check** - MANDATORY before any commits: Run `/quality` to review all code changes with "fresh eyes" and fix any issues found
-3. **Run quality gates** (if code changed) - Tests, linters, builds
-4. **Update issue status** - Close finished work, update in-progress items
-5. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-6. **Clean up** - Clear stashes, prune remote branches
-7. **Verify** - All changes committed AND pushed
-8. **Hand off** - Provide context for next session
+1. **Summarize changes** - Show `git status` and `git diff --stat` for review
+2. **File issues for remaining work** - Propose issues for anything that needs follow-up
+3. **Run quality check** - Run `/quality` to review changes before proposing commits
+4. **Run quality gates** (if code changed) - Tests, linters, builds
+5. **Propose commit message** - Use `$craft` to generate conventional commit message
+6. **Wait for user approval** - User reviews and explicitly approves commit/push
+7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-- NEVER skip the quality check (`/quality`) - it catches bugs before they're committed
+- **NEVER commit or push without explicit user approval**
+- Propose commits with `$craft`, wait for user to say "commit" or "push"
+- If user says "done" or "let's wrap up", show the checklist above and wait for approval
+- Run `/quality` before proposing any commits
+- The user owns all git operations - Claude proposes, user approves
