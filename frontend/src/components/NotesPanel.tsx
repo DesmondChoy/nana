@@ -5,6 +5,7 @@ import SelectionToolbar from './SelectionToolbar';
 import ExpansionBlock from './ExpansionBlock';
 import EmphasisBox from './EmphasisBox';
 import { useTextSelection, useClearSelection } from '../hooks/useTextSelection';
+import { useToast } from '../hooks/useToast';
 import { executeInlineCommand } from '../api/client';
 
 interface NotesPanelProps {
@@ -120,6 +121,8 @@ export default function NotesPanel({
   const [executingCommandType, setExecutingCommandType] = useState<InlineCommandType | null>(null);
   const [internalEditMode, setInternalEditMode] = useState(false);
   const [isEmphasisOpen, setIsEmphasisOpen] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const { toast } = useToast();
 
   // Support both controlled and uncontrolled edit mode
   const isEditMode = controlledEditMode ?? internalEditMode;
@@ -146,6 +149,9 @@ export default function NotesPanel({
       // Use pageContent.text if available, otherwise fall back to notes markdown
       const contextText = pageContent?.text ?? notes.markdown;
 
+      // Create abort controller for this request
+      abortControllerRef.current = new AbortController();
+
       setIsExecutingCommand(true);
       setExecutingCommandType(command);
       try {
@@ -156,20 +162,33 @@ export default function NotesPanel({
           pageText: contextText,
           userProfile: userProfile,
           sessionId: sessionId,
+          signal: abortControllerRef.current.signal,
         });
 
         onAddExpansion(selection.text, response);
         clearSelection();
       } catch (error) {
         console.error('Failed to execute inline command:', error);
-        // Could add error toast here
+        const message = error instanceof Error ? error.message : 'Command failed';
+        // Don't show toast for user-initiated cancellation
+        if (message !== 'Request was cancelled') {
+          toast.error(message);
+        }
       } finally {
         setIsExecutingCommand(false);
         setExecutingCommandType(null);
+        abortControllerRef.current = null;
       }
     },
-    [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection, notes]
+    [selection, pageContent, userProfile, sessionId, pageNumber, onAddExpansion, clearSelection, notes, toast]
   );
+
+  const handleCancelCommand = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      toast.info('Command cancelled');
+    }
+  }, [toast]);
 
   // Toggle edit mode - supports both controlled and uncontrolled modes
   const handleToggleEdit = useCallback(() => {
@@ -358,6 +377,7 @@ export default function NotesPanel({
             isLoading={isExecutingCommand}
             loadingCommand={executingCommandType}
             visible={!!selection || isExecutingCommand}
+            onCancel={isExecutingCommand ? handleCancelCommand : undefined}
           />
         )}
 

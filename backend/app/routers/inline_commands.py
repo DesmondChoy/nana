@@ -5,16 +5,17 @@ Handles text transformation commands (elaborate, simplify, analogy)
 that operate on user-selected text within the notes panel.
 """
 
-from pathlib import Path
 import time
+from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from google import genai
 from google.genai import types
 
 from app.config import Settings, get_gemini_client, get_settings
-from app.schemas import InlineCommandRequest, InlineCommandResponse, InlineCommandType
 from app.debug import DebugLogger
+from app.schemas import InlineCommandRequest, InlineCommandResponse, InlineCommandType
 
 router = APIRouter()
 
@@ -106,6 +107,21 @@ async def execute_inline_command(
             start_time=start_time,
             end_time=time.time(),
             session_id=request.session_id,
+        )
+    except httpx.TimeoutException as e:
+        # Log timeout
+        debug_logger.log_interaction(
+            name=f"inline_command_{request.command_type.value}",
+            prompt=filled_prompt,
+            response=None,
+            start_time=start_time,
+            end_time=time.time(),
+            error=f"Timeout: {e}",
+            session_id=request.session_id,
+        )
+        raise HTTPException(
+            status_code=504,
+            detail="The AI service took too long to respond. Please try again.",
         )
     except Exception as e:
         # Log failed interaction

@@ -8,6 +8,7 @@ interface SelectionToolbarProps {
   isLoading?: boolean;
   loadingCommand?: InlineCommandType | null;
   visible?: boolean;
+  onCancel?: () => void;
 }
 
 const LOADING_MESSAGES: Record<InlineCommandType, string> = {
@@ -29,6 +30,7 @@ export default function SelectionToolbar({
   isLoading = false,
   loadingCommand = null,
   visible = true,
+  onCancel,
 }: SelectionToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -92,6 +94,19 @@ export default function SelectionToolbar({
           <span className="text-sm font-medium text-blue-700 dark:text-blue-300 animate-pulse">
             {LOADING_MESSAGES[loadingCommand]}
           </span>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              onMouseDown={handleMouseDown}
+              className="ml-1 p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200
+                         hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+              title="Cancel"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       ) : (
         COMMANDS.map(({ type, icon, label }) => (

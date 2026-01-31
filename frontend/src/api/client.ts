@@ -264,6 +264,9 @@ export async function logCacheHits(params: LogCacheHitsParams): Promise<void> {
   });
 }
 
+// Timeout for inline commands (in milliseconds)
+const INLINE_COMMAND_TIMEOUT = 30000;
+
 // Execute inline command (elaborate, simplify, analogy, diagram)
 export interface ExecuteInlineCommandParams {
   commandType: InlineCommandType;
@@ -278,26 +281,53 @@ export interface ExecuteInlineCommandParams {
 export async function executeInlineCommand(
   params: ExecuteInlineCommandParams
 ): Promise<InlineCommandResponse> {
-  const response = await fetch(`${API_BASE}/inline-command`, {
-    method: 'POST',
-    headers: getHeaders('application/json'),
-    body: JSON.stringify({
-      command_type: params.commandType,
-      selected_text: params.selectedText,
-      page_number: params.pageNumber,
-      page_text: params.pageText,
-      user_profile: params.userProfile,
-      session_id: params.sessionId ?? null,
-    }),
-    signal: params.signal,
-  });
+  // Create timeout controller
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), INLINE_COMMAND_TIMEOUT);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Command failed' }));
-    throw new Error(error.detail || 'Failed to execute inline command');
+  // If user provides a signal, abort on either timeout or user cancellation
+  const userSignal = params.signal;
+  const abortHandler = () => timeoutController.abort();
+  if (userSignal) {
+    userSignal.addEventListener('abort', abortHandler);
   }
 
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE}/inline-command`, {
+      method: 'POST',
+      headers: getHeaders('application/json'),
+      body: JSON.stringify({
+        command_type: params.commandType,
+        selected_text: params.selectedText,
+        page_number: params.pageNumber,
+        page_text: params.pageText,
+        user_profile: params.userProfile,
+        session_id: params.sessionId ?? null,
+      }),
+      signal: timeoutController.signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Command failed' }));
+      throw new Error(error.detail || 'Failed to execute inline command');
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      // Check if it was user cancellation or timeout
+      if (userSignal?.aborted) {
+        throw new Error('Request was cancelled');
+      }
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    if (userSignal) {
+      userSignal.removeEventListener('abort', abortHandler);
+    }
+  }
 }
 
 // Integrate emphasis into existing notes
