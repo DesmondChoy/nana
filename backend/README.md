@@ -31,6 +31,12 @@ GOOGLE_API_KEY=your_google_api_key_here
 
 # Optional: Override default model
 # GEMINI_MODEL=gemini-3-flash-preview
+
+# Optional: Endpoint-specific timeouts (milliseconds)
+# Upload/extraction is heavier and defaults to 180s
+# GEMINI_UPLOAD_TIMEOUT_MS=180000
+# Inline commands default to 60s
+# GEMINI_INLINE_TIMEOUT_MS=60000
 ```
 
 Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).

@@ -13,7 +13,6 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 from google import genai
-from google.genai import types
 from pydantic_settings import BaseSettings
 
 
@@ -23,7 +22,9 @@ class Settings(BaseSettings):
     # Gemini API - optional from .env (can be provided via header instead)
     google_api_key: str = ""
     gemini_model: str = "gemini-3-flash-preview"
-    gemini_timeout: int = 60000  # Timeout in milliseconds for Gemini API calls (60 seconds)
+    # Endpoint-specific timeouts (milliseconds)
+    gemini_upload_timeout_ms: int = 180000
+    gemini_inline_timeout_ms: int = 60000
 
     # Note: Context for notes generation is handled at the API layer
     # (previous_page passed explicitly in NotesRequest)
@@ -67,7 +68,4 @@ def get_gemini_client(
             detail="API key required. Please provide your Gemini API key."
         )
 
-    return genai.Client(
-        api_key=api_key,
-        http_options=types.HttpOptions(timeout=settings.gemini_timeout),
-    )
+    return genai.Client(api_key=api_key)

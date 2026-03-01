@@ -8,12 +8,13 @@ function AppContent() {
   const parsedPDF = usePDFStore((state) => state.parsedPDF);
   const pdfFileUrl = usePDFStore((state) => state.pdfFileUrl);
   const isUploading = usePDFStore((state) => state.uploadState.isUploading);
+  const uploadError = usePDFStore((state) => state.uploadState.error);
 
   // Show study page if:
   // 1. Uploading (with loading state)
   // 2. parsedPDF is ready (normal flow)
   // 3. pdfFileUrl is set with complete cache (cache-only resume)
-  if (profile && (isUploading || parsedPDF || pdfFileUrl)) {
+  if (profile && (isUploading || uploadError || parsedPDF || pdfFileUrl)) {
     return <StudyPage />;
   }
 

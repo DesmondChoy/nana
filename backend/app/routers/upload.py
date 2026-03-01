@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from google import genai
 from google.genai import types
@@ -81,6 +82,26 @@ For each page, provide:
 Extract ALL pages. Preserve paragraph structure. Include all text, headings, captions, and footnotes."""
 
 
+def _is_timeout_error(error: Exception) -> bool:
+    """Detect timeout/deadline errors from Gemini or HTTP stack."""
+    error_text = str(error)
+    return (
+        isinstance(error, httpx.TimeoutException)
+        or "DEADLINE_EXCEEDED" in error_text
+        or "timed out" in error_text.lower()
+    )
+
+
+def _user_friendly_upload_error(error: Exception) -> str:
+    """Return a concise upload error message for end users."""
+    if _is_timeout_error(error):
+        return (
+            "PDF processing timed out while extracting text. "
+            "Please retry, or try a smaller/simpler PDF."
+        )
+    return f"Gemini API error: {error}"
+
+
 def _load_overview_prompt() -> str:
     """Load the document overview prompt template."""
     prompt_path = Path(__file__).parent.parent.parent / "prompts" / "document_overview.md"
@@ -126,6 +147,7 @@ async def generate_document_overview(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=DocumentOverview,
+                http_options=types.HttpOptions(timeout=settings.gemini_upload_timeout_ms),
             ),
         )
         debug_logger.log_interaction(
@@ -211,6 +233,7 @@ async def upload_and_parse_pdf(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=PDFExtractionResponse,
+                http_options=types.HttpOptions(timeout=settings.gemini_upload_timeout_ms),
             ),
         )
         # Log successful interaction
@@ -242,7 +265,8 @@ async def upload_and_parse_pdf(
             success=False,
             error=str(e),
         )
-        raise HTTPException(status_code=500, detail=f"Gemini API error: {e}")
+        status_code = 504 if _is_timeout_error(e) else 500
+        raise HTTPException(status_code=status_code, detail=_user_friendly_upload_error(e))
 
     # Parse the JSON response
     end_time = time.time()

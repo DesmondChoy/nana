@@ -96,6 +96,7 @@ async def execute_inline_command(
                 response_mime_type="application/json",
                 response_schema=InlineCommandResponse,
                 temperature=0.3,  # Slightly higher for creative transformations
+                http_options=types.HttpOptions(timeout=settings.gemini_inline_timeout_ms),
             ),
         )
 

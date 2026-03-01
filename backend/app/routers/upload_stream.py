@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from google import genai
@@ -63,6 +64,26 @@ For each page, provide:
 Extract ALL pages. Preserve paragraph structure. Include all text, headings, captions, and footnotes."""
 
 
+def _is_timeout_error(error: Exception) -> bool:
+    """Detect timeout/deadline errors from Gemini or HTTP stack."""
+    error_text = str(error)
+    return (
+        isinstance(error, httpx.TimeoutException)
+        or "DEADLINE_EXCEEDED" in error_text
+        or "timed out" in error_text.lower()
+    )
+
+
+def _user_friendly_upload_error(error: Exception) -> str:
+    """Return a concise upload error message for end users."""
+    if _is_timeout_error(error):
+        return (
+            "PDF processing timed out while extracting text. "
+            "Please retry, or try a smaller/simpler PDF."
+        )
+    return f"Gemini API error: {error}"
+
+
 def _load_overview_prompt() -> str:
     """Load the document overview prompt template."""
     prompt_path = Path(__file__).parent.parent.parent / "prompts" / "document_overview.md"
@@ -106,6 +127,7 @@ async def _generate_overview_async(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=DocumentOverview,
+                http_options=types.HttpOptions(timeout=settings.gemini_upload_timeout_ms),
             ),
         )
 
@@ -215,6 +237,7 @@ async def process_pdf_with_progress(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=PDFExtractionResponse,
+                http_options=types.HttpOptions(timeout=settings.gemini_upload_timeout_ms),
             ),
         )
 
@@ -246,7 +269,7 @@ async def process_pdf_with_progress(
         yield _format_sse(
             UploadProgressEvent(
                 step=UploadStep.ERROR,
-                message=f"Gemini API error: {e}",
+                message=_user_friendly_upload_error(e),
                 progress_percent=0,
             )
         )

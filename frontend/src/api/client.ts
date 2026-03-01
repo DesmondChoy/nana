@@ -50,6 +50,19 @@ function parseSSEStream(
 ): void {
   const decoder = new TextDecoder();
   let buffer = '';
+  let hasTerminalEvent = false;
+
+  function emitError(message: string): void {
+    if (hasTerminalEvent) return;
+    hasTerminalEvent = true;
+    callbacks.onError(message);
+  }
+
+  function emitComplete(data: ParsedPDF): void {
+    if (hasTerminalEvent) return;
+    hasTerminalEvent = true;
+    callbacks.onComplete(data);
+  }
 
   async function processStream(): Promise<void> {
     try {
@@ -67,6 +80,9 @@ function parseSSEStream(
           if (buffer.trim()) {
             processBufferedEvents();
           }
+          if (!hasTerminalEvent && !signal?.aborted) {
+            emitError('Upload stream ended unexpectedly before completion. Please try again.');
+          }
           return;
         }
 
@@ -78,7 +94,7 @@ function parseSSEStream(
       }
     } catch (error) {
       if (signal?.aborted) return;
-      callbacks.onError(error instanceof Error ? error.message : 'Stream read error');
+      emitError(error instanceof Error ? error.message : 'Stream read error');
     }
   }
 
@@ -104,9 +120,9 @@ function parseSSEStream(
 
             // Route to appropriate callback based on step
             if (event.step === 'complete' && event.data) {
-              callbacks.onComplete(event.data as ParsedPDF);
+              emitComplete(event.data as ParsedPDF);
             } else if (event.step === 'error') {
-              callbacks.onError(event.message);
+              emitError(event.message);
             } else {
               callbacks.onProgress(event);
             }
