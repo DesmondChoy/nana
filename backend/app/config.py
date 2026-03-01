@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # Endpoint-specific timeouts (milliseconds)
     gemini_upload_timeout_ms: int = 180000
     gemini_inline_timeout_ms: int = 60000
+    # PDF preprocessing controls
+    pdf_enable_preprocess: bool = True
+    pdf_max_bytes: int = 50 * 1024 * 1024
+    pdf_split_target_bytes: int = 45 * 1024 * 1024
+    pdf_compression_profile: str = "balanced"
 
     # Note: Context for notes generation is handled at the API layer
     # (previous_page passed explicitly in NotesRequest)

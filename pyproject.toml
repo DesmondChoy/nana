@@ -16,6 +16,9 @@ dependencies = [
 
     # Google Gemini SDK (new unified SDK)
     "google-genai==1.56.0",
+
+    # PDF preprocessing
+    "pypdf==6.4.0",
 ]
 
 [project.optional-dependencies]

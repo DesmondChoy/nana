@@ -21,6 +21,8 @@ from pydantic import BaseModel, ValidationError
 from app.config import Settings, get_gemini_client, get_settings
 from app.debug import DebugLogger
 from app.schemas import DocumentOverview, PageContent, UserProfile
+from app.services.pdf_extract import extract_pages_for_prepared_pdf
+from app.services.pdf_preprocess import PDFPreprocessError, PreparedPDF, prepare_pdf_for_gemini
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +56,6 @@ def log_upload_request(
 router = APIRouter()
 
 
-class PDFExtractionResponse(BaseModel):
-    """Structure for the LLM response."""
-
-    pages: list[PageContent]
-
-
 class ParsedPDF(BaseModel):
     """Response containing extracted content from all pages."""
 
@@ -69,17 +65,6 @@ class ParsedPDF(BaseModel):
     session_id: str  # Unique ID for this upload session (used for debug log grouping)
     content_hash: str  # SHA-256 hash of PDF bytes (first 16 hex chars) for import matching
     overview: DocumentOverview | None = None  # Optional LLM-generated document overview
-
-
-EXTRACTION_PROMPT = """Analyze this PDF document and extract the content from each page.
-
-For each page, provide:
-1. The page number (1-indexed)
-2. The full text content
-3. Whether the page contains images (true/false)
-4. Whether the page contains tables (true/false)
-
-Extract ALL pages. Preserve paragraph structure. Include all text, headings, captions, and footnotes."""
 
 
 def _is_timeout_error(error: Exception) -> bool:
@@ -94,6 +79,8 @@ def _is_timeout_error(error: Exception) -> bool:
 
 def _user_friendly_upload_error(error: Exception) -> str:
     """Return a concise upload error message for end users."""
+    if isinstance(error, PDFPreprocessError):
+        return error.user_message
     if _is_timeout_error(error):
         return (
             "PDF processing timed out while extracting text. "
@@ -106,6 +93,22 @@ def _load_overview_prompt() -> str:
     """Load the document overview prompt template."""
     prompt_path = Path(__file__).parent.parent.parent / "prompts" / "document_overview.md"
     return prompt_path.read_text()
+
+
+def _summarize_preprocess(prepared_pdf: PreparedPDF) -> str:
+    """Return a short summary string for logs."""
+    if prepared_pdf.mode == "original":
+        return "mode=original"
+    if prepared_pdf.mode == "compressed":
+        return (
+            f"mode=compressed size={prepared_pdf.total_output_bytes / (1024 * 1024):.2f}MB "
+            f"attempts={len(prepared_pdf.compression_attempts)}"
+        )
+    return (
+        f"mode=split chunks={prepared_pdf.parts_count} "
+        f"total_chunk_bytes={prepared_pdf.total_output_bytes / (1024 * 1024):.2f}MB "
+        f"attempts={len(prepared_pdf.compression_attempts)}"
+    )
 
 
 async def generate_document_overview(
@@ -196,13 +199,6 @@ async def upload_and_parse_pdf(
     # Generate content hash for import matching (first 16 hex chars of SHA-256)
     content_hash = hashlib.sha256(pdf_bytes).hexdigest()[:16]
 
-    # Check size limit (50MB)
-    if len(pdf_bytes) > 50 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail="PDF exceeds 50MB limit. Please upload a smaller file.",
-        )
-
     # Parse user profile if provided
     parsed_profile: UserProfile | None = None
     if user_profile:
@@ -218,45 +214,45 @@ async def upload_and_parse_pdf(
 
     debug_logger = DebugLogger()
     start_time = time.time()
-    prompt_contents = [
-        types.Part.from_bytes(
-            data=pdf_bytes,
-            mime_type="application/pdf",
-        ),
-        EXTRACTION_PROMPT,
-    ]
 
     try:
-        response = client.models.generate_content(
-            model=settings.gemini_model,
-            contents=prompt_contents,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=PDFExtractionResponse,
-                http_options=types.HttpOptions(timeout=settings.gemini_upload_timeout_ms),
-            ),
+        prepared_pdf = prepare_pdf_for_gemini(
+            pdf_bytes,
+            max_bytes=settings.pdf_max_bytes,
+            split_target_bytes=settings.pdf_split_target_bytes,
+            enable_preprocess=settings.pdf_enable_preprocess,
+            compression_profile=settings.pdf_compression_profile,
         )
-        # Log successful interaction
-        debug_logger.log_interaction(
-            name="pdf_extraction",
-            prompt=[f"Extract text/tables/images from {file.filename}", EXTRACTION_PROMPT],
-            response=response,
-            start_time=start_time,
-            end_time=time.time(),
+        logger.info(
+            "[upload] preprocess file=%s size=%.2fMB session=%s %s",
+            file.filename,
+            file_size_mb,
+            session_id,
+            _summarize_preprocess(prepared_pdf),
+        )
+    except PDFPreprocessError as e:
+        log_upload_request(
+            filename=file.filename,
+            file_size_mb=file_size_mb,
             session_id=session_id,
+            duration_seconds=time.time() - start_time,
+            success=False,
+            error=e.internal_message,
+        )
+        raise HTTPException(status_code=400, detail=e.user_message) from e
+
+    try:
+        pages = await extract_pages_for_prepared_pdf(
+            prepared_pdf=prepared_pdf,
+            client=client,
+            model=settings.gemini_model,
+            timeout_ms=settings.gemini_upload_timeout_ms,
+            filename=file.filename,
+            session_id=session_id,
+            debug_logger=debug_logger,
         )
     except Exception as e:
         end_time = time.time()
-        # Log failed interaction
-        debug_logger.log_interaction(
-            name="pdf_extraction",
-            prompt=f"Extract text/tables/images from {file.filename}",
-            response=None,
-            start_time=start_time,
-            end_time=end_time,
-            error=str(e),
-            session_id=session_id,
-        )
         log_upload_request(
             filename=file.filename,
             file_size_mb=file_size_mb,
@@ -268,24 +264,16 @@ async def upload_and_parse_pdf(
         status_code = 504 if _is_timeout_error(e) else 500
         raise HTTPException(status_code=status_code, detail=_user_friendly_upload_error(e))
 
-    # Parse the JSON response
-    end_time = time.time()
-    try:
-        parsed_response: PDFExtractionResponse = response.parsed
-        pages = parsed_response.pages
-    except Exception as e:
+    if not pages:
         log_upload_request(
             filename=file.filename,
             file_size_mb=file_size_mb,
             session_id=session_id,
-            duration_seconds=end_time - start_time,
+            duration_seconds=time.time() - start_time,
             success=False,
-            error=f"Parse error: {e}",
+            error="Gemini extraction returned no pages",
         )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to parse Gemini response: {e}",
-        )
+        raise HTTPException(status_code=500, detail="Gemini extraction returned no pages.")
 
     # Generate document overview if user profile is provided
     overview = await generate_document_overview(

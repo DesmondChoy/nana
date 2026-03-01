@@ -53,6 +53,7 @@ interface PDFState {
     currentStep: UploadStep | null;
     stepMessage: string | null;
     progressPercent: number;
+    usedPreprocess: boolean;
   };
 
   // Cached notes per page (keyed by page number)
@@ -153,6 +154,7 @@ export const usePDFStore = create<PDFState>()(
         currentStep: null,
         stepMessage: null,
         progressPercent: 0,
+        usedPreprocess: false,
       },
       notesCache: {},
       emphasisDrafts: {},
@@ -181,6 +183,7 @@ export const usePDFStore = create<PDFState>()(
             currentStep: null,
             stepMessage: null,
             progressPercent: 0,
+            usedPreprocess: false,
           },
         }),
 
@@ -191,6 +194,11 @@ export const usePDFStore = create<PDFState>()(
             currentStep: step,
             stepMessage: message,
             progressPercent: percent,
+            usedPreprocess:
+              state.uploadState.usedPreprocess
+              || step === 'optimizing_pdf'
+              || step === 'splitting_pdf'
+              || step === 'extracting_chunks',
           },
         })),
 
@@ -226,6 +234,7 @@ export const usePDFStore = create<PDFState>()(
             currentStep: null,
             stepMessage: null,
             progressPercent: 0,
+            usedPreprocess: false,
           },
           generationProgress: {
             isGenerating: false,
@@ -251,6 +260,7 @@ export const usePDFStore = create<PDFState>()(
               currentStep: 'error',
               stepMessage: error,
               progressPercent: 0,
+              usedPreprocess: state.uploadState.usedPreprocess,
             },
           };
         }),
@@ -319,6 +329,7 @@ export const usePDFStore = create<PDFState>()(
             currentStep: null,
             stepMessage: null,
             progressPercent: 0,
+            usedPreprocess: false,
           },
           notesCache: {},
           emphasisDrafts: {},
@@ -545,6 +556,7 @@ export const usePDFStore = create<PDFState>()(
             currentStep: null,
             stepMessage: null,
             progressPercent: 0,
+            usedPreprocess: false,
           },
           generationProgress: {
             isGenerating: false,

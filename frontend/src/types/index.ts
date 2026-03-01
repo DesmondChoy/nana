@@ -92,6 +92,9 @@ export interface PageNotes {
 // Upload progress SSE types
 export type UploadStep =
   | 'validating'
+  | 'optimizing_pdf'
+  | 'splitting_pdf'
+  | 'extracting_chunks'
   | 'extracting'
   | 'parsing'
   | 'generating_overview'

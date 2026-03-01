@@ -21,6 +21,9 @@ dependencies = [
 
     # YAML parsing for prompts
     "pyyaml==6.0.3",
+
+    # PDF preprocessing (split large PDFs into Gemini-safe chunks)
+    "pypdf==6.4.0",
 ]
 
 [build-system]

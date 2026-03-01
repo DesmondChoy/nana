@@ -118,6 +118,9 @@ class UploadStep(str, Enum):
     """Steps in the upload/processing pipeline."""
 
     VALIDATING = "validating"
+    OPTIMIZING_PDF = "optimizing_pdf"
+    SPLITTING_PDF = "splitting_pdf"
+    EXTRACTING_CHUNKS = "extracting_chunks"
     EXTRACTING = "extracting"
     PARSING = "parsing"
     GENERATING_OVERVIEW = "generating_overview"

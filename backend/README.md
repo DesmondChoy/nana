@@ -37,6 +37,16 @@ GOOGLE_API_KEY=your_google_api_key_here
 # GEMINI_UPLOAD_TIMEOUT_MS=180000
 # Inline commands default to 60s
 # GEMINI_INLINE_TIMEOUT_MS=60000
+
+# Optional: Large-PDF preprocessing controls
+# Enable compress/split preprocessing for PDFs > 50MB
+# PDF_ENABLE_PREPROCESS=true
+# Hard upload cap for each Gemini request
+# PDF_MAX_BYTES=52428800
+# Target chunk size when splitting large PDFs
+# PDF_SPLIT_TARGET_BYTES=47185920
+# Compression profile: balanced (default), aggressive, high_fidelity
+# PDF_COMPRESSION_PROFILE=balanced
 ```
 
 Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).
@@ -69,6 +79,20 @@ uvicorn app.main:app --reload
 ```
 
 Backend runs on `http://localhost:8000`.
+
+## Large PDF Support
+
+NANA now preprocesses large PDFs before Gemini extraction:
+
+- If file is <= 50MB: process directly
+- If file is > 50MB: attempt compression first
+- If still > 50MB: split into multiple Gemini-safe chunks and merge results
+
+For best compression results in production, install Ghostscript on the backend runtime.
+
+- Railway example: set `RAILPACK_DEPLOY_APT_PACKAGES=ghostscript`
+
+If Ghostscript is unavailable, NANA still falls back to split-only mode.
 
 ## Project Structure
 

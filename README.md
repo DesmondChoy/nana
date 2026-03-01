@@ -19,6 +19,7 @@ NANA uses a BYOK (Bring Your Own Key) model powered by [Gemini 3 Flash](https://
 ## 🛠 Features
 
 * **Smart PDF Processing:** Two-phase pipeline extracts content once, generates notes efficiently.
+* **Large PDF Handling:** Auto-optimizes and splits files above Gemini's 50MB request limit.
 * **Document Overview:** Executive summary with concept journey auto-generated as page 0.
 * **LaTeX & Markdown:** KaTeX math rendering with Obsidian-style callouts (note, warning, tip).
 * **Inline Commands:** Select text to elaborate, simplify, or get analogies tailored to your background.
@@ -71,6 +72,9 @@ NANA uses a two-phase AI pipeline to optimize performance and cost:
 ## 📦 Installation
 
 **Requirements:** Python 3.11+, Node.js 18+, [uv](https://docs.astral.sh/uv/)
+
+Optional runtime dependency for stronger PDF compression in production:
+- Ghostscript (`gs`) binary
 
 | Step | Command |
 |------|---------|

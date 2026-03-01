@@ -311,6 +311,8 @@ function CachedSessionBanner({
 }
 
 export default function UploadPage() {
+  const LARGE_PDF_THRESHOLD_BYTES = 50 * 1024 * 1024;
+
   const setProfile = useUserStore((state) => state.setProfile);
   const existingProfile = useUserStore((state) => state.profile);
   const startUpload = usePDFStore((state) => state.startUpload);
@@ -350,6 +352,14 @@ export default function UploadPage() {
   const [pendingPdfHash, setPendingPdfHash] = useState<string | null>(null);
 
   const { toast } = useToast();
+
+  const notifyLargePdf = useCallback((file: File) => {
+    if (file.size <= LARGE_PDF_THRESHOLD_BYTES) return;
+    toast.info(
+      `Large PDF detected (${(file.size / 1024 / 1024).toFixed(1)}MB). `
+      + 'NANA will optimize/split it automatically, so upload may take longer.'
+    );
+  }, [toast]);
 
   const handleUpload = useCallback((file: File, profile: UserProfile) => {
     // Create blob URL before starting upload
@@ -564,15 +574,17 @@ export default function UploadPage() {
     const file = e.dataTransfer.files?.[0];
     if (file?.type === 'application/pdf') {
       setSelectedFile(file);
+      notifyLargePdf(file);
     }
-  }, []);
+  }, [notifyLargePdf]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      notifyLargePdf(file);
     }
-  }, []);
+  }, [notifyLargePdf]);
 
   const handleNotesFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

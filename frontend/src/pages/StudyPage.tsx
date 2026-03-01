@@ -484,13 +484,30 @@ export default function StudyPage() {
 
               {/* Step indicators */}
               <div className="flex justify-center items-center gap-2">
-                {(['validating', 'extracting', 'parsing', 'generating_overview'] as const).map((step, index) => {
-                  const steps = ['validating', 'extracting', 'parsing', 'generating_overview'];
-                  const currentStepIndex = uploadState.currentStep
-                    ? steps.indexOf(uploadState.currentStep)
+                {(uploadState.usedPreprocess
+                  ? ['validating', 'optimizing_pdf', 'extracting', 'parsing', 'generating_overview']
+                  : ['validating', 'extracting', 'parsing', 'generating_overview']
+                ).map((step, index) => {
+                  const steps = uploadState.usedPreprocess
+                    ? ['validating', 'optimizing_pdf', 'extracting', 'parsing', 'generating_overview']
+                    : ['validating', 'extracting', 'parsing', 'generating_overview'];
+                  const stepAliases: Record<string, string> = {
+                    validating: 'validating',
+                    optimizing_pdf: uploadState.usedPreprocess ? 'optimizing_pdf' : 'extracting',
+                    splitting_pdf: uploadState.usedPreprocess ? 'optimizing_pdf' : 'extracting',
+                    extracting: 'extracting',
+                    extracting_chunks: 'extracting',
+                    parsing: 'parsing',
+                    generating_overview: 'generating_overview',
+                  };
+                  const canonicalCurrentStep = uploadState.currentStep
+                    ? stepAliases[uploadState.currentStep]
+                    : undefined;
+                  const currentStepIndex = canonicalCurrentStep
+                    ? steps.indexOf(canonicalCurrentStep)
                     : -1;
                   const isCompleted = currentStepIndex > index;
-                  const isActive = uploadState.currentStep === step;
+                  const isActive = canonicalCurrentStep === step;
 
                   return (
                     <div
